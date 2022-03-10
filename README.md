@@ -21,6 +21,33 @@ bit 31 - 24: Yaddress (in pixels)
 bit 23: Polarity (0 for OFF, 1 for ON)
 bit 22 - 0: Timestamp (in microseconds)
 
+### Contents of the original repository 
+
+Data and pretrained subfolders are omitted since they only contain the data and the pretrained models, if existent, there is no "original code" in them.
+
+#### Base
+
+
+
+#### Model
+
+
+
+#### Scripts
+
+- **embed_reconstructed_images_in_robag.py**, **extract_events_from_rosbag.py** and **image_folder_tp_rosbag.py** are used for conversion from rosbag to .txt format, seems unlikely that we'll end up using these.
+- **resample_reconstructions.py**: resamples the reconstructed time-stamped images and selects the ones that lead to a fixed, user-defined framerate.
+
+#### Utils
+
+- **path_utils.py**: contains a simple function that verifies the existence of a folder and creates it otherwise
+- **loading_utils.py**: contains a function for loading a pretrained model in **run_reconstruction.py** and a function for selecting the device that will be used for computation.
+- **timers.py**: pretty self-explanatory, defines CUDA and normal timers for event reading and processing.
+- **util.py**: once again, pretty self-explanatory, very small but powerful and efficient functions.
+- **inference_utils.py**: utils for image reconstruction, we may need to take a deeper look at it.
+  - make_even_preview: ...
+- **event_readers**:  
+
 ### Possible Future Works
 
 [de Tournemire et al.](https://arxiv.org/abs/2001.08499) have created a large dataset of event-based camera samples, specialised in the automotive sector. It might be interesting for us to take a look at this dataset, and maybe train our model on it.
