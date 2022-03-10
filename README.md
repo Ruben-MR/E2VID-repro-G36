@@ -21,3 +21,7 @@ bit 31 - 24: Yaddress (in pixels)
 bit 23: Polarity (0 for OFF, 1 for ON)
 bit 22 - 0: Timestamp (in microseconds)
 
+### Possible Future Works
+
+[de Tournemire et al.](https://arxiv.org/abs/2001.08499) have created a large dataset of event-based camera samples, specialised in the automotive sector. It might be interesting for us to take a look at this dataset, and maybe train our model on it.
+
