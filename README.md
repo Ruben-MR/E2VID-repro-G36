@@ -25,6 +25,9 @@ bit 22 - 0: Timestamp (in microseconds)
 
 Data and pretrained subfolders are omitted since they only contain the data and the pretrained models, if existent, there is no "original code" in them.
 
+- **run_reconstruction.py**: 
+- **image_reconstructor.py**: 
+
 #### Base
 
 - **base_model.py**: contains the definition of the base class for defining the posterior networks, it contains the init, forward and summary functions to be overriden or called by the models.
@@ -80,9 +83,9 @@ The model is defined in a hierarchical structure, using as reference the BaseMod
 - **loading_utils.py**: contains a function for loading a pretrained model in **run_reconstruction.py** and a function for selecting the device that will be used for computation.
 - **timers.py**: pretty self-explanatory, defines CUDA and normal timers for event reading and processing.
 - **util.py**: once again, pretty self-explanatory, very small but powerful and efficient functions.
+- **event_readers**:  not really useful, it is only used in the **run_reconstruction.py** file and it basically decodes the event information gathered in the .txt or .zip file as fixed duration/# events non-overlapping windows. This however, seems to contrast with the structure of the original data, already structured as numpy files.
 - **inference_utils.py**: utils for image reconstruction, we may need to take a deeper look at it.
   - make_even_preview: ...
-- **event_readers**:  
 
 ### Possible Future Works
 
