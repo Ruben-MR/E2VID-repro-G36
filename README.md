@@ -32,6 +32,19 @@ Data and pretrained subfolders are omitted since they only contain the data and 
 
 - **base_model.py**: contains the definition of the base class for defining the posterior networks, it contains the init, forward and summary functions to be overriden or called by the models.
 
+#### Data
+
+This folder is meant to contain datasets the program can process. Originally, this folder was empty, and must be populated by the user.
+A playtesting dataset was provided by [the authors](https://rpg.ifi.uzh.ch/E2VID.html), with the file name  ```dynamic_6dof.zip```.
+
+- **dynamic_6dof.zip**: an event dataset. Inside ths ```.zip``` file is a ```.txt``` file with the same name. The structure and contents of this file are as follows:
+  - the first row indicates the ```width``` and ```height``` of the camera, in pixels (as integers).
+  - every subsequent row contains one event, and is made up of 4 entries, separated by one space each:
+    - the timestamp of the event (in Unix time, as a floating number)
+    - the x-coordinate (horizontal) of the event (in pixels, as an integer)
+    - the y-coordinate (vertical) of the event (in pixels, as an integer)
+    - the polarity of the event (either 0 for a decrease in intensity, or 1 for an increase in intensity)
+
 #### Model
 
 The model is defined in a hierarchical structure, using as reference the BaseModel from **base_model.py**, the model builds upon the UNet class, which is constructed using the elements in **submodules.py**.
