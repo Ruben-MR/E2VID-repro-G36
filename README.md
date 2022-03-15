@@ -37,7 +37,7 @@ Data and pretrained subfolders are omitted since they only contain the data and 
 This folder is meant to contain datasets the program can process. Originally, this folder was empty, and must be populated by the user.
 A playtesting dataset was provided by [the authors](https://github.com/uzh-rpg/rpg_e2vid), with the file name  ```dynamic_6dof.zip```.
 
-- **dynamic_6dof.zip**: an event dataset. Inside ths ```.zip``` file is a ```.txt``` file with the same name. The structure and contents of this file are as follows:
+- **dynamic_6dof.zip**: an event dataset. Inside this ```.zip``` file is a ```.txt``` file with the same name. The structure and contents of this file are as follows:
   - the first row indicates the ```width``` and ```height``` of the camera, in pixels (as integers).
   - every subsequent row contains one event, and is made up of 4 entries, separated by one space each:
     - the timestamp of the event (in Unix time, as a floating number)
