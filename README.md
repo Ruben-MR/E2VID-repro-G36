@@ -25,8 +25,8 @@ bit 22 - 0: Timestamp (in microseconds)
 
 Data and pretrained subfolders are omitted since they only contain the data and the pretrained models, if existent, there is no "original code" in them.
 
-- **run_reconstruction.py**: 
-- **image_reconstructor.py**: 
+- **run_reconstruction.py**: loads imformation from a .zip or a .txt file using the classes in **event_readers.py**, perform the conversion to pytorch tensors using the functions in **inference_utils.py** and then uses and **ImageReconstructor** object to perform a prediction and depiction of a new frame.
+- **image_reconstructor.py**: image reconstruction class for translating event data into images given a trained model and using the different classes for event preprocessing and image construction stated in **inference_utils.py**. 
 
 #### Base
 
@@ -40,10 +40,13 @@ A playtesting dataset was provided by [the authors](https://github.com/uzh-rpg/r
 - **dynamic_6dof.zip**: an event dataset. Inside this ```.zip``` file is a ```.txt``` file with the same name. The structure and contents of this file are as follows:
   - the first row indicates the ```width``` and ```height``` of the camera, in pixels (as integers).
   - every subsequent row contains one event, and is made up of 4 entries, separated by one space each:
-    - the timestamp of the event (in Unix time, as a floating number)
-    - the x-coordinate (horizontal) of the event (in pixels, as an integer)
-    - the y-coordinate (vertical) of the event (in pixels, as an integer)
-    - the polarity of the event (either 0 for a decrease in intensity, or 1 for an increase in intensity)
+   - the timestamp of the event (in Unix time, as a floating number)
+   - the x-coordinate (horizontal) of the event (in pixels, as an integer)
+   - the y-coordinate (vertical) of the event (in pixels, as an integer)
+   - the polarity of the event (either 0 for a decrease in intensity, or 1 for an increase in intensity)
+
+- **modified MS_COCO**: 
+
 
 #### Model
 
@@ -98,7 +101,9 @@ The model is defined in a hierarchical structure, using as reference the BaseMod
 - **util.py**: once again, pretty self-explanatory, very small but powerful and efficient functions.
 - **event_readers**:  not really useful, it is only used in the **run_reconstruction.py** file and it basically decodes the event information gathered in the .txt or .zip file as fixed duration/# events non-overlapping windows. This however, seems to contrast with the structure of the original data, already structured as numpy files.
 - **inference_utils.py**: utils for image reconstruction, we may need to take a deeper look at it.
-  - make_even_preview: ...
+  - events_to_voxel_grid_pytorch: converts a sequence of N events with \[timestamp, x, y, polarity\] into a pytorch event tensor. First, it discretizes the duration of the N events into B temporal bins (i.e. it maps the interval \[t0, tN-1\] into \[0, B-1\]. Then it rounds down the normalized timestamps to the corresponding bins (from what I see, then the last bin will only be assigned the last timestamp). Then it computes the time differences between the normalized timestamp and the associated bin. Then it propagates the polarity of every event into the assigned cell and the following cell (if possible) at the location of the event in the image, according to the aforementioned difference. That is, equation 1 of the original paper.
+  - events_to_voxel_grid: similar to the previous one but using numpy arrays instead of pytorch tensors.
+  - The rest are image modification classes and functions (and a preprocessing function for tensors) that we can take a look at as we need them.
 
 ### Possible Future Works
 
