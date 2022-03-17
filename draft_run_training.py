@@ -143,7 +143,7 @@ if __name__ == "__main__":
 
         return train_losses, val_losses
 
-    def loss_fn(I_pred, I_pred_pre, I_true, first_iteration=False):  # TODO: deal with the sequence data
+    def loss_fn(I_pred, I_pred_pre, I_true, first_iteration=False):
         # reconstruction loss
         # image should be RGB, IMPORTANT: normalized to [-1,1]
         reconstruction_loss_fn = lpips.LPIPS(net='vgg').cuda()
