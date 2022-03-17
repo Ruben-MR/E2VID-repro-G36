@@ -21,6 +21,8 @@ bit 31 - 24: Yaddress (in pixels)
 bit 23: Polarity (0 for OFF, 1 for ON)
 bit 22 - 0: Timestamp (in microseconds)
 
+UPDATE: the binary files are already converted to .csv format and I have the code ready for translating them into the voxel tensors required for the network. I will wait until we have clear the training procedure so as to perform the conversion already in the preferred structure for training and preventing unnecessary file movement from one place to another.
+
 ### Contents of the original repository 
 
 Data and pretrained subfolders are omitted since they only contain the data and the pretrained models, if existent, there is no "original code" in them.
