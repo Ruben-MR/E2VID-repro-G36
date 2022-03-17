@@ -1,12 +1,46 @@
 # This is the README of the blog for the reproducibility project
 
-## Here we can note down things, links or whichever information we may deem relevant as well as modified files to save each other some time and avoid re-implementing the same thing three times
-
-### Useful links
+## Useful links
 
 Project's webpage from ETH [link](https://rpg.ifi.uzh.ch/E2VID.html)
 
-### n-MNIST
+## Training process
+
+From what I have seen in the paper, the only strictly necessary pre-processing required for the tensors is normalizing. Besides that, the the rotation, vertical and horizontal flips and random cropping are only necessary for augmenting the dataset. They also mentioned that they enriched the dataset with different contrast thresholds but it seems like such modification is already embedded in the dataset.
+
+Having said that, the class **EventPreprocessor** in **utils/inference_utils.py** is already configured to perform the normalization, flipping and hot pixel removal, so we can stick to those two modifications (the normalization is always required).
+
+I am also going to drop here the link to the repository from which we can borrow the training class or base class [link-to-repo](https://github.com/victoresque/pytorch-template).
+
+### Dataset/ data structure
+
+- **modified MS_COCO**: 
+
+## Contents of the original repository 
+
+Data and pretrained subfolders are omitted since they only contain the data and the pretrained models, if existent, there is no "original code" in them.
+
+- **run_reconstruction.py**: loads imformation from a .zip or a .txt file using the classes in **event_readers.py**, perform the conversion to pytorch tensors using the functions in **inference_utils.py** and then uses and **ImageReconstructor** object to perform a prediction and depiction of a new frame.
+- **image_reconstructor.py**: image reconstruction class for translating event data into images given a trained model and using the different classes for event preprocessing and image construction stated in **inference_utils.py**. 
+
+### Base
+
+- **base_model.py**: contains the definition of the base class for defining the posterior networks, it contains the init, forward and summary functions to be overriden or called by the models.
+
+### Data
+
+This folder is meant to contain datasets the program can process. Originally, this folder was empty, and must be populated by the user.
+A playtesting dataset was provided by [the authors](https://github.com/uzh-rpg/rpg_e2vid), with the file name  ```dynamic_6dof.zip```.
+
+- **dynamic_6dof.zip**: an event dataset. Inside this ```.zip``` file is a ```.txt``` file with the same name. The structure and contents of this file are as follows:
+  - the first row indicates the ```width``` and ```height``` of the camera, in pixels (as integers).
+  - every subsequent row contains one event, and is made up of 4 entries, separated by one space each:
+   - the timestamp of the event (in Unix time, as a floating number)
+   - the x-coordinate (horizontal) of the event (in pixels, as an integer)
+   - the y-coordinate (vertical) of the event (in pixels, as an integer)
+   - the polarity of the event (either 0 for a decrease in intensity, or 1 for an increase in intensity)
+
+#### n-MNIST
 
 I have found this [repository](https://github.com/gorchard/event-Python) from Garrick Orchard in which he claims to have a *VERY* initial version of some files for handling event data. However, I think that the authors themselves have included some files for parsing and reading the data from these datasets, but we wil need to try it out.
 
@@ -23,34 +57,7 @@ bit 22 - 0: Timestamp (in microseconds)
 
 UPDATE: the binary files are already converted to .csv format and I have the code ready for translating them into the voxel tensors required for the network. I will wait until we have clear the training procedure so as to perform the conversion already in the preferred structure for training and preventing unnecessary file movement from one place to another. Also, I have noticed that they actually do not train the network on n-MNIST, but they only used the dataset for training the additional classification network that they put on top of the trained event network 😢. 
 
-### Contents of the original repository 
-
-Data and pretrained subfolders are omitted since they only contain the data and the pretrained models, if existent, there is no "original code" in them.
-
-- **run_reconstruction.py**: loads imformation from a .zip or a .txt file using the classes in **event_readers.py**, perform the conversion to pytorch tensors using the functions in **inference_utils.py** and then uses and **ImageReconstructor** object to perform a prediction and depiction of a new frame.
-- **image_reconstructor.py**: image reconstruction class for translating event data into images given a trained model and using the different classes for event preprocessing and image construction stated in **inference_utils.py**. 
-
-#### Base
-
-- **base_model.py**: contains the definition of the base class for defining the posterior networks, it contains the init, forward and summary functions to be overriden or called by the models.
-
-#### Data
-
-This folder is meant to contain datasets the program can process. Originally, this folder was empty, and must be populated by the user.
-A playtesting dataset was provided by [the authors](https://github.com/uzh-rpg/rpg_e2vid), with the file name  ```dynamic_6dof.zip```.
-
-- **dynamic_6dof.zip**: an event dataset. Inside this ```.zip``` file is a ```.txt``` file with the same name. The structure and contents of this file are as follows:
-  - the first row indicates the ```width``` and ```height``` of the camera, in pixels (as integers).
-  - every subsequent row contains one event, and is made up of 4 entries, separated by one space each:
-   - the timestamp of the event (in Unix time, as a floating number)
-   - the x-coordinate (horizontal) of the event (in pixels, as an integer)
-   - the y-coordinate (vertical) of the event (in pixels, as an integer)
-   - the polarity of the event (either 0 for a decrease in intensity, or 1 for an increase in intensity)
-
-- **modified MS_COCO**: 
-
-
-#### Model
+### Model
 
 The model is defined in a hierarchical structure, using as reference the BaseModel from **base_model.py**, the model builds upon the UNet class, which is constructed using the elements in **submodules.py**.
 
@@ -86,16 +93,16 @@ The model is defined in a hierarchical structure, using as reference the BaseMod
   - **E2VID**: class calling the normal UNet architecture with the provided parameters (or the ones defined in the base class by default) and performs the forward pass, outputting the image in black and white.
   - **E2VIDRecurrent**: similar to the previous one, making a call to the UNetRecurrent class with the provided parameters, using a ConvLSTM or ConvGRU after each encoder block.
 
-#### Options
+### Options
 
 - Function for parsing possible inference arguments passed to the run-reconstruction file upon execution.
 
-#### Scripts
+### Scripts
 
 - **embed_reconstructed_images_in_robag.py**, **extract_events_from_rosbag.py** and **image_folder_tp_rosbag.py** are used for conversion from rosbag to .txt format, seems unlikely that we'll end up using these.
 - **resample_reconstructions.py**: resamples the reconstructed time-stamped images and selects the ones that lead to a fixed, user-defined framerate.
 
-#### Utils
+### Utils
 
 - **path_utils.py**: contains a simple function that verifies the existence of a folder and creates it otherwise
 - **loading_utils.py**: contains a function for loading a pretrained model in **run_reconstruction.py** and a function for selecting the device that will be used for computation.
@@ -107,7 +114,7 @@ The model is defined in a hierarchical structure, using as reference the BaseMod
   - events_to_voxel_grid: similar to the previous one but using numpy arrays instead of pytorch tensors.
   - The rest are image modification classes and functions (and a preprocessing function for tensors) that we can take a look at as we need them.
 
-### Possible Future Works
+## Possible Future Works
 
 [de Tournemire et al.](https://arxiv.org/abs/2001.08499) have created a large dataset of event-based camera samples, specialised in the automotive sector. It might be interesting for us to take a look at this dataset, and maybe train our model on it.
 
