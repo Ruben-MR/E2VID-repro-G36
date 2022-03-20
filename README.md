@@ -14,7 +14,25 @@ I am also going to drop here the link to the repository from which we can borrow
 
 ### Dataset/ data structure
 
-- **modified MS_COCO**: 
+- **modified MS_COCO**: We are making use of an event-based modified version of the [MS-COCO dataset](https://cocodataset.org/#home). This modified dataset was created by producing simulated events from MS-COCO images, using the [ESIM simulator](https://rpg.ifi.uzh.ch/docs/CORL18_Rebecq.pdf). Some additional data augmentation techniques are used to further enrich the dataset (see [section 3.3 of the article](https://arxiv.org/abs/1906.07165)). This newly created dataset contains 950 training sequences and 50 validation sequences. Each sequence is made up of the following:
+  - the **frames**; a series of images, which put together constitute a short video:
+    - format: ```.png```
+    - number of images per sequence: ~ 50-60
+    - resolution: 240 x 180 [px]
+    - color channels: 1 (grayscale)
+    - each image in the video is accompanied with a timestamp that defines its moment of occurence in time.
+    - some additional metadata about the generated frames is present (in ```params.json```).
+  - the **flow**; a series of [optical flow maps](https://docs.opencv.org/3.4/d4/dee/tutorial_optical_flow.html) between consecutive video images:
+    - format: ```.npy```, containing a float array
+    - shape: (2, 180, 240) corresponding to ([axis of motion (x/y)], [pixel location on the image])
+    - each flow array is accompanied by two timestamps, defining the initial and final time of the flow.
+  - the **events**; a series of events, represented using the technique mentioned in [section 3.2 of the article](https://arxiv.org/abs/1906.07165).
+    - format: ```.npy```, containing a float array
+    - shape: (5, 180, 240) corresonding to ([temporal bin], [pixel location on the image])
+    - each event tensor is accompanied by 3 timestamp values:
+      - one corresponds to the beginning and end occurences of the event tensor.
+      - the last one is a single value of the end occurence of the event (the reason why this is done as such remains obscure).
+    - some additional metadata about the generated events is present (in ```params.json```).
 
 ## Contents of the original repository 
 
