@@ -78,7 +78,7 @@ def flow_map(im, flo):
 
 
 # Custom loss function
-def loss_fn(I_pred, I_pred_pre, I_true, first_iteration=False):
+def loss_fn(I_pred, I_pred_pre, I_true, first_iteration=False, flow=None):
     # reconstruction loss
     # image should be RGB, IMPORTANT: normalized to [-1,1]
     reconstruction_loss_fn = lpips.LPIPS(net='vgg').cuda()
@@ -87,12 +87,14 @@ def loss_fn(I_pred, I_pred_pre, I_true, first_iteration=False):
     # temporal consistency loss
     if not first_iteration:
         alpha = 50  # hyper-parameter for weighting term (mitigate the effect of occlusions)
-        # TODO: optical flow operator, in the lines below, it is not W*I_pred_pre but only W.
-        #  In the paper it is a bit tricky to notice, but W is defined as a function and so,
-        #  W(I_pred_pre) is not a matrix multiplication but a function W taking I_pred_pre as parameter
-        W = 1
-        weighting_term = torch.exp(-alpha * torch.linalg.norm(I_pred - W * I_pred_pre, ord=2, dim=(-1, -2)))
-        temporal_loss = weighting_term * torch.linalg.norm(I_pred - W * I_pred_pre, ord=1, dim=(-1, -2))
+        # TODO: verify correct working, notice that in the expressions below, I have removed the muliplication, that is
+        #  because the paper is a bit tricky in this aspect, but W is actually a function, not a matrix multiplication
+        if flow is not None:
+            W = flow_map(I_pred_pre, flow)
+        else:
+            W = 1
+        weighting_term = torch.exp(-alpha * torch.linalg.norm(I_pred - W, ord=2, dim=(-1, -2)))
+        temporal_loss = weighting_term * torch.linalg.norm(I_pred - W, ord=1, dim=(-1, -2))
     else:
         temporal_loss = 0
 
