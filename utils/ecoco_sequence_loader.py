@@ -117,12 +117,14 @@ def full_event_tensor(sequence_indices, streamlength, path=DATA_DIR):
     :param streamlength: int, specifies the number of sequential event tensors to make
     :param path: str, the path wherein the root folder of the COCO dataset is located
     :return:
-        - a numpy array, shape (streamlength, batch size, 5, 180, 240)
+        - a numpy array, shape (streamlength, batch size, 5, 180, 240), contains the event tensors making up the full tensor
+        - a numpy array, shape (streamlength, batch size, 2), contains the retrieved boundary timestamps from the 'boundary_timestamps.txt' file
+        - a numpy array, shape (streamlength, batch size), contains the retrieved timestamps from the 'timestamps.txt' file
     """
 
     event_tensor = np.empty([len(sequence_indices), streamlength, 5, 180, 240])
     boundary_timestamps_tensor = np.empty([len(sequence_indices), streamlength, 2])
-    timestamps_tensor = np.empty([len(sequence_indices), streamlength, 1])
+    timestamps_tensor = np.empty([len(sequence_indices), streamlength])
 
     for batch_idx, seq_idx in enumerate(sequence_indices):
         filepath = os.path.join(path,
@@ -133,18 +135,17 @@ def full_event_tensor(sequence_indices, streamlength, path=DATA_DIR):
         os.chdir(filepath)
 
         boundary_timestamps = pd.read_csv("boundary_timestamps.txt", header=None, delim_whitespace=True)
-        print(f"{boundary_timestamps.values=}")
-
+        boundary_timestamps_tensor[batch_idx] = boundary_timestamps.values[:streamlength,1:]
 
         timestamps = pd.read_csv("timestamps.txt", header=None, delim_whitespace=True)
-        timestamps.columns = ("idx", "t")
+        timestamps_tensor[batch_idx] = timestamps.values[:streamlength, -1]
 
         for stream_index in range(streamlength):
             event_tensor[batch_idx, stream_index] = np.load("event_tensor_{:>010d}.npy".format(stream_index))
 
     os.chdir(os.path.dirname(os.path.abspath(__file__)))
 
-    return event_tensor.transpose([1, 0, 2, 3, 4])
+    return event_tensor.transpose([1, 0, 2, 3, 4]), boundary_timestamps_tensor.transpose([1, 0, 2]), timestamps_tensor.transpose([1, 0])
 
 
 
@@ -186,5 +187,7 @@ if __name__ == '__main__':
     batch_indices = [42, 64]
     streamlength = 8
 
-    tensor = full_event_tensor(batch_indices, streamlength)
-
+    tensor, bdry_tmstmps, tmstmps = full_event_tensor(batch_indices, streamlength)
+    print(tensor.shape)
+    print(bdry_tmstmps.shape)
+    print(tmstmps.shape)
