@@ -10,10 +10,12 @@ import glob
 import numpy as np
 import pandas as pd
 import cv2
+import torch
+
 from config import DATA_DIR
 
 
-def load_flow(sequence_type, sequence_number, path=DATA_DIR):
+def load_sequence_flow(sequence_type, sequence_number, path=DATA_DIR):
     filepath = os.path.join(path,
                             "ecoco_depthmaps_test",
                             sequence_type,
@@ -35,7 +37,7 @@ def load_flow(sequence_type, sequence_number, path=DATA_DIR):
     return flow, boundary_timestamps
 
 
-def load_frames(sequence_type, sequence_number, path=DATA_DIR):
+def load_sequence_frames(sequence_type, sequence_number, path=DATA_DIR):
     filepath = os.path.join(path,
                             "ecoco_depthmaps_test",
                             sequence_type,
@@ -60,7 +62,7 @@ def load_frames(sequence_type, sequence_number, path=DATA_DIR):
     return images, timestamps, params
 
 
-def load_voxelgrid(sequence_type, sequence_number, path=DATA_DIR):
+def load_sequence_event_tensor(sequence_type, sequence_number, path=DATA_DIR):
     filepath = os.path.join(path,
                             "ecoco_depthmaps_test",
                             sequence_type,
@@ -88,11 +90,11 @@ def load_voxelgrid(sequence_type, sequence_number, path=DATA_DIR):
     return event_tensors, timestamps, boundary_timestamps, params
 
 
-def load_everyting(sequence_type, sequence_number, path=DATA_DIR):
+def load_everything_sequence(sequence_type, sequence_number, path=DATA_DIR):
 
-    flow, f_boundary_timestamps = load_flow(sequence_type, sequence_number, path=path)
-    images, i_timestamps, i_params = load_frames(sequence_type, sequence_number, path=path)
-    event_tensors, e_timestamps, e_boundary_timestamps, e_params = load_voxelgrid(sequence_type, sequence_number, path=path)
+    flow, f_boundary_timestamps = load_sequence_flow(sequence_type, sequence_number, path=path)
+    images, i_timestamps, i_params = load_sequence_frames(sequence_type, sequence_number, path=path)
+    event_tensors, e_timestamps, e_boundary_timestamps, e_params = load_sequence_event_tensor(sequence_type, sequence_number, path=path)
 
     sequence_dict = {"flow": {"data": flow,
                               "boundary_timestamps": f_boundary_timestamps},
@@ -105,6 +107,35 @@ def load_everyting(sequence_type, sequence_number, path=DATA_DIR):
                                                    "params": e_params}}
 
     return sequence_dict
+
+
+def full_event_tensor(sequence_indices, streamlength, path=DATA_DIR):
+    """
+    This function creates an event tensor, ready to be used for training.
+
+    :param batch_indices: list of ints, corresponding to the sequence indices to create the batch, length of the list is the Batch Size
+    :param streamlength: int, specifies the number of sequential event tensors to make
+    :param path: str, the path wherein the root folder of the COCO dataset is located
+    :return: a numpy array, shape (streamlength, batch size, 5, 180, 240)
+    """
+
+    tensor = np.empty([len(batch_indices), streamlength, 5, 180, 240])
+
+    for batch_idx, seq_idx in enumerate(sequence_indices):
+        filepath = os.path.join(path,
+                            "ecoco_depthmaps_test",
+                            "train",
+                            "sequence_{:>010d}".format(seq_idx),
+                            "VoxelGrid-betweenframes-5")
+        os.chdir(filepath)
+
+        for stream_index in range(streamlength):
+            tensor[batch_idx, stream_index] = np.load("event_tensor_{:>010d}.npy".format(stream_index))
+
+    os.chdir(os.path.dirname(os.path.abspath(__file__)))
+
+    return tensor.transpose([1, 0, 2, 3, 4])
+
 
 
 if __name__ == '__main__':
@@ -130,14 +161,20 @@ if __name__ == '__main__':
     # print(boundary_timestamps)
     # print(json.dumps(params, indent=4))
 
-    sequence_dict = load_everyting(sequence_type, sequence_number)
+    # sequence_dict = load_everything_sequence(sequence_type, sequence_number)
 
-    print(sequence_dict["flow"]["data"])
-    print(sequence_dict["flow"]["boundary_timestamps"])
-    print(sequence_dict["frames"]["data"])
-    print(sequence_dict["frames"]["timestamps"])
-    print(sequence_dict["frames"]["params"])
-    print(sequence_dict["VoxelGrid-betweenframes-5"]["data"])
-    print(sequence_dict["VoxelGrid-betweenframes-5"]["timestamps"])
-    print(sequence_dict["VoxelGrid-betweenframes-5"]["boundary_timestamps"])
-    print(sequence_dict["VoxelGrid-betweenframes-5"]["params"])
+    # print(len(sequence_dict["flow"]["data"]))
+    # print(sequence_dict["flow"]["boundary_timestamps"])
+    # print(sequence_dict["frames"]["data"])
+    # print(sequence_dict["frames"]["timestamps"])
+    # print(sequence_dict["frames"]["params"])
+    # print(sequence_dict["VoxelGrid-betweenframes-5"]["data"])
+    # print(sequence_dict["VoxelGrid-betweenframes-5"]["timestamps"])
+    # print(sequence_dict["VoxelGrid-betweenframes-5"]["boundary_timestamps"])
+    # print(sequence_dict["VoxelGrid-betweenframes-5"]["params"])
+
+    batch_indices = [42, 64]
+    streamlength = 8
+
+    tensor = full_event_tensor(batch_indices, streamlength)
+
