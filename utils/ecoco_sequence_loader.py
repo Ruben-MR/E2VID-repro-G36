@@ -58,7 +58,6 @@ def load_sequence_frames(sequence_type, sequence_number, path=DATA_DIR):
         images.append(cv2.imread(file))
 
     os.chdir(os.path.dirname(os.path.abspath(__file__)))
-
     return images, timestamps, params
 
 
@@ -113,7 +112,7 @@ def full_event_tensor(sequence_indices, streamlength, path=DATA_DIR):
     """
     This function creates an event tensor, ready to be used for training.
 
-    :param batch_indices: list of ints, corresponding to the sequence indices to create the batch, length of the list is the Batch Size
+    :param sequence_indices: list of ints, corresponding to the sequence indices to create the batch, length of the list is the Batch Size
     :param streamlength: int, specifies the number of sequential event tensors to make
     :param path: str, the path wherein the root folder of the COCO dataset is located
     :return:
@@ -146,6 +145,40 @@ def full_event_tensor(sequence_indices, streamlength, path=DATA_DIR):
     os.chdir(os.path.dirname(os.path.abspath(__file__)))
 
     return event_tensor.transpose([1, 0, 2, 3, 4]), boundary_timestamps_tensor.transpose([1, 0, 2]), timestamps_tensor.transpose([1, 0])
+
+
+def full_images_tensor(sequence_indices, streamlength, path=DATA_DIR):
+    """
+    This function creates a tensor containing images retrieved from the corresponding sequence indices, and streamlengths.
+
+    :param sequence_indices: list of ints, corresponding to the sequence indices to create the batch, length of the list is the Batch Size
+    :param streamlength: int, specifies the number of sequential event tensors to make
+    :param path: str, the path wherein the root folder of the COCO dataset is located
+    :return:
+    """
+
+    image_tensor = np.empty([len(sequence_indices), streamlength, 180, 240], dtype='uint8')
+    timestamps_tensor = np.empty([len(sequence_indices), streamlength])
+
+    for batch_idx, seq_idx in enumerate(sequence_indices):
+        filepath = os.path.join(path,
+                                "ecoco_depthmaps_test",
+                                "train",
+                                "sequence_{:>010d}".format(seq_idx),
+                                "frames")
+        os.chdir(filepath)
+
+        timestamps = pd.read_csv("timestamps.txt", header=None, delim_whitespace=True)
+        timestamps_tensor[batch_idx] = timestamps.values[:streamlength, -1]
+
+        for stream_index in range(streamlength):
+            image_tensor[batch_idx, stream_index] = cv2.imread("frame_{:>010d}.png".format(stream_index), cv2.IMREAD_GRAYSCALE)
+
+    os.chdir(os.path.dirname(os.path.abspath(__file__)))
+
+    return image_tensor.transpose([1, 0, 2, 3]), timestamps_tensor.transpose([1, 0])
+
+
 
 
 
@@ -184,10 +217,18 @@ if __name__ == '__main__':
     # print(sequence_dict["VoxelGrid-betweenframes-5"]["boundary_timestamps"])
     # print(sequence_dict["VoxelGrid-betweenframes-5"]["params"])
 
-    batch_indices = [42, 64]
+    sequence_indices = [42, 64]
     streamlength = 8
 
-    tensor, bdry_tmstmps, tmstmps = full_event_tensor(batch_indices, streamlength)
-    print(tensor.shape)
-    print(bdry_tmstmps.shape)
-    print(tmstmps.shape)
+    # e_tensor, bdry_tmstmps, tmstmps = full_event_tensor(sequence_indices, streamlength)
+    # print(e_tensor.shape)
+    # print(bdry_tmstmps.shape)
+    # print(tmstmps.shape)
+
+    # img_tensor, tmstmps = full_images_tensor(sequence_indices, streamlength)
+    # print(tmstmps.shape)
+    # print(img_tensor.shape)
+    # cv2.imshow('', img_tensor[0, 0])
+    # cv2.waitKey()
+
+
