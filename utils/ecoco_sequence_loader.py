@@ -116,10 +116,13 @@ def full_event_tensor(sequence_indices, streamlength, path=DATA_DIR):
     :param batch_indices: list of ints, corresponding to the sequence indices to create the batch, length of the list is the Batch Size
     :param streamlength: int, specifies the number of sequential event tensors to make
     :param path: str, the path wherein the root folder of the COCO dataset is located
-    :return: a numpy array, shape (streamlength, batch size, 5, 180, 240)
+    :return:
+        - a numpy array, shape (streamlength, batch size, 5, 180, 240)
     """
 
-    tensor = np.empty([len(batch_indices), streamlength, 5, 180, 240])
+    event_tensor = np.empty([len(sequence_indices), streamlength, 5, 180, 240])
+    boundary_timestamps_tensor = np.empty([len(sequence_indices), streamlength, 2])
+    timestamps_tensor = np.empty([len(sequence_indices), streamlength, 1])
 
     for batch_idx, seq_idx in enumerate(sequence_indices):
         filepath = os.path.join(path,
@@ -129,12 +132,19 @@ def full_event_tensor(sequence_indices, streamlength, path=DATA_DIR):
                             "VoxelGrid-betweenframes-5")
         os.chdir(filepath)
 
+        boundary_timestamps = pd.read_csv("boundary_timestamps.txt", header=None, delim_whitespace=True)
+        print(f"{boundary_timestamps.values=}")
+
+
+        timestamps = pd.read_csv("timestamps.txt", header=None, delim_whitespace=True)
+        timestamps.columns = ("idx", "t")
+
         for stream_index in range(streamlength):
-            tensor[batch_idx, stream_index] = np.load("event_tensor_{:>010d}.npy".format(stream_index))
+            event_tensor[batch_idx, stream_index] = np.load("event_tensor_{:>010d}.npy".format(stream_index))
 
     os.chdir(os.path.dirname(os.path.abspath(__file__)))
 
-    return tensor.transpose([1, 0, 2, 3, 4])
+    return event_tensor.transpose([1, 0, 2, 3, 4])
 
 
 
