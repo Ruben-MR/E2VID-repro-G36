@@ -127,10 +127,10 @@ def full_event_tensor(sequence_indices, streamlength, path=DATA_DIR):
 
     for batch_idx, seq_idx in enumerate(sequence_indices):
         filepath = os.path.join(path,
-                            "ecoco_depthmaps_test",
-                            "train",
-                            "sequence_{:>010d}".format(seq_idx),
-                            "VoxelGrid-betweenframes-5")
+                                "ecoco_depthmaps_test",
+                                "train",
+                                "sequence_{:>010d}".format(seq_idx),
+                                "VoxelGrid-betweenframes-5")
         os.chdir(filepath)
 
         boundary_timestamps = pd.read_csv("boundary_timestamps.txt", header=None, delim_whitespace=True)
@@ -155,6 +155,8 @@ def full_images_tensor(sequence_indices, streamlength, path=DATA_DIR):
     :param streamlength: int, specifies the number of sequential event tensors to make
     :param path: str, the path wherein the root folder of the COCO dataset is located
     :return:
+        - a numpy array, shape (streamlength, batch size, 180, 240), contains the images
+        - a numpy array, shape (streamlength, batch size), contains the retrieved timestamps from the 'timestamps.txt' file
     """
 
     image_tensor = np.empty([len(sequence_indices), streamlength, 180, 240], dtype='uint8')
@@ -179,7 +181,38 @@ def full_images_tensor(sequence_indices, streamlength, path=DATA_DIR):
     return image_tensor.transpose([1, 0, 2, 3]), timestamps_tensor.transpose([1, 0])
 
 
+def full_flow_tensor(sequence_indices, streamlength, path=DATA_DIR):
+    """
+    This function creates a flow tensor, ready to be used for training.
 
+    :param sequence_indices: list of ints, corresponding to the sequence indices to create the batch, length of the list is the Batch Size
+    :param streamlength: int, specifies the number of sequential event tensors to make
+    :param path: str, the path wherein the root folder of the COCO dataset is located
+    :return:
+        - a numpy array, shape (streamlength, batch size, 2, 180, 240), contains the flow tensors making up the full tensor
+        - a numpy array, shape (streamlength, batch size, 2), contains the retrieved boundary timestamps from the 'boundary_timestamps.txt' file
+    """
+
+    flow_tensor = np.empty([len(sequence_indices), streamlength, 2, 180, 240])
+    boundary_timestamps_tensor = np.empty([len(sequence_indices), streamlength, 2])
+
+    for batch_idx, seq_idx in enumerate(sequence_indices):
+        filepath = os.path.join(path,
+                                "ecoco_depthmaps_test",
+                                "train",
+                                "sequence_{:>010d}".format(seq_idx),
+                                "flow")
+        os.chdir(filepath)
+
+        boundary_timestamps = pd.read_csv("boundary_timestamps.txt", header=None, delim_whitespace=True)
+        boundary_timestamps_tensor[batch_idx] = boundary_timestamps.values[:streamlength, 1:]
+
+        for stream_index in range(1, streamlength):
+            flow_tensor[batch_idx, stream_index] = np.load("disp01_{:>010d}.npy".format(stream_index))
+
+    os.chdir(os.path.dirname(os.path.abspath(__file__)))
+
+    return flow_tensor.transpose([1, 0, 2, 3, 4]), boundary_timestamps_tensor.transpose([1, 0, 2])
 
 
 if __name__ == '__main__':
@@ -230,5 +263,10 @@ if __name__ == '__main__':
     # print(img_tensor.shape)
     # cv2.imshow('', img_tensor[0, 0])
     # cv2.waitKey()
+
+    f_tensor, bdry_tmstmps = full_flow_tensor(sequence_indices, streamlength)
+    print(f_tensor.shape)
+    print(bdry_tmstmps.shape)
+
 
 
