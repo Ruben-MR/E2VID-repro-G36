@@ -147,7 +147,7 @@ def full_event_tensor(sequence_indices, streamlength, path=DATA_DIR):
     return event_tensor.transpose([1, 0, 2, 3, 4]), boundary_timestamps_tensor.transpose([1, 0, 2]), timestamps_tensor.transpose([1, 0])
 
 
-def full_images_tensor(sequence_indices, streamlength, path=DATA_DIR):
+def full_image_tensor(sequence_indices, streamlength, path=DATA_DIR):
     """
     This function creates a tensor containing images retrieved from the corresponding sequence indices, and streamlengths.
 
@@ -258,7 +258,7 @@ if __name__ == '__main__':
     # print(bdry_tmstmps.shape)
     # print(tmstmps.shape)
 
-    # img_tensor, tmstmps = full_images_tensor(sequence_indices, streamlength)
+    # img_tensor, tmstmps = full_image_tensor(sequence_indices, streamlength)
     # print(tmstmps.shape)
     # print(img_tensor.shape)
     # cv2.imshow('', img_tensor[0, 0])
