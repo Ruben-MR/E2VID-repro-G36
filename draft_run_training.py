@@ -264,12 +264,13 @@ if __name__ == "__main__":
     events = crop.pad(events) # (1, 5, 184, 240)
     # ==========================================
 
-    events = events.view((1,*events.shape)) # (1, 1, 5, 184, 240)
+    #events = events.view((1,*events.shape)) # (1, 1, 5, 184, 240)
+    events = events.unsqueeze(dim=0)
     sequence_length = events.shape[0]
     batch_size = events.shape[1]
     events = events.tile((sequence_length, batch_size, 1, 1, 1)) # (sequence_len, batch_size, channel, H, W)
     events = events.to(device)
-    labels = torch.rand((*events.shape)).detach()
+    labels = torch.rand(events.shape).detach()
     labels = labels[:, :, 0:1, :, :] # TODO: dealing with multiple channels
     labels = labels.to(device)
 
