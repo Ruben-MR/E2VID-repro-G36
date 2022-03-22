@@ -1,5 +1,6 @@
 import matplotlib.pyplot as plt
 import torch
+import torch.nn.functional as F
 from utils.loading_utils import load_model, get_device
 import numpy as np
 import argparse
@@ -34,6 +35,48 @@ def plot_training_data(train_losses, val_losses):
 
     plt.show()
 
+
+def flow_map(im, flo):
+    """
+    Flow mapping function, it wraps the previous image into the following timestep using the flowmap provided. The
+    output will be the reconstructed image using the flow.
+    :param im: tensor of shape (B, 1, H, W) containing the reconstructed images of the different batches at the previous
+    time step
+    :param flo: tensor of shape (B, 2, H, W) containing the flowmaps between the previous and the current/next timestep
+    :return:
+    """
+    B, C, H, W = im.shape
+
+    assert (im.is_cuda is True and flo.is_cuda is True) or (im.is_cuda is False and flo.is_cuda is False), \
+        "both tensors should be on the same device"
+    assert C == 1, "the image tensor has more than one channel"
+    assert flo.shape[1] == 2, "flow tensor has wrong dimensions"
+
+    xx = torch.arange(0, W).view(1, -1).repeat(1, 1, H, 1)
+    yy = torch.arange(0, H).view(-1, 1).repeat(1, 1, 1, W)
+    xx = xx.repeat(B, 1, 1, 1)
+    yy = yy.repeat(B, 1, 1, 1)
+    grid = torch.cat((xx, yy), 1)
+
+    if im.is_cuda:
+        grid = grid.cuda()
+    vgrid = torch.autograd.Variable(grid) + flo
+
+    vgrid[:, 0, :, :] = 2.0 * vgrid[:, 0, :, :].clone() / max(W - 1, 1) - 1.0
+    vgrid[:, 1, :, :] = 2.0 * vgrid[:, 1, :, :].clone() / max(H - 1, 1) - 1.0
+
+    vgrid = vgrid.permute(0, 2, 3, 1)
+    output = F.grid_sample(im.double(), vgrid)
+    """
+    mask = torch.autograd.Variable(torch.ones(im.size())).cuda()
+    mask = F.grid_sample(mask.double(), vgrid)
+    mask[mask < 0.9999] = 0
+    mask[mask > 0] = 1
+    output *= mask
+    """
+    return output
+
+
 # Custom loss function
 def loss_fn(I_pred, I_pred_pre, I_true, first_iteration=False):
     # reconstruction loss
@@ -44,7 +87,10 @@ def loss_fn(I_pred, I_pred_pre, I_true, first_iteration=False):
     # temporal consistency loss
     if not first_iteration:
         alpha = 50  # hyper-parameter for weighting term (mitigate the effect of occlusions)
-        W = 1  # TODO: optical flow operator
+        # TODO: optical flow operator, in the lines below, it is not W*I_pred_pre but only W.
+        #  In the paper it is a bit tricky to notice, but W is defined as a function and so,
+        #  W(I_pred_pre) is not a matrix multiplication but a function W taking I_pred_pre as parameter
+        W = 1
         weighting_term = torch.exp(-alpha * torch.linalg.norm(I_pred - W * I_pred_pre, ord=2, dim=(-1, -2)))
         temporal_loss = weighting_term * torch.linalg.norm(I_pred - W * I_pred_pre, ord=1, dim=(-1, -2))
     else:
