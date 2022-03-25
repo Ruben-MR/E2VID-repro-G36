@@ -16,7 +16,7 @@ Now, I am going to write down here the workflow that the training loop should ha
 have already, what we don't, what we need to add and what we don't need to. 
 
 Start iterating over the epochs
-  - Load a batch of events and ground-truth images (event tensor of shape: (B,T,1,H,W), image tensor of shape: (B,1,H,W) and flow tensor of shape (B,T-1,2,H,W))
+  - Load a batch of events and ground-truth images (event tensor of shape: (T,B,1,H,W), image tensor of shape: (B,1,H,W) and flow tensor of shape (T-1,B,2,H,W))
     - Preprocess event tensor
       - Normalize the tensor: use EventPreprocessor with no flip nor hot pixel removal
       - Crop the tensor: use CropParameters with the height and width of the image and the number of encoders of the model
