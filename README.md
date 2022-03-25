@@ -12,6 +12,25 @@ Having said that, the class **EventPreprocessor** in **utils/inference_utils.py*
 
 I am also going to drop here the link to the repository from which we can borrow the training class or base class [link-to-repo](https://github.com/victoresque/pytorch-template).
 
+Now, I am going to write down here the workflow that the training loop should have so as to make it more clear what we 
+have already, what we don't, what we need to add and what we don't need to. 
+
+Start iterating over the epochs
+  - Load a batch of events and ground-truth images (event tensor of shape: (B,T,1,H,W), image tensor of shape: (B,1,H,W) and flow tensor of shape (B,T-1,2,H,W))
+    - Preprocess event tensor
+      - Normalize the tensor: use EventPreprocessor with no flip nor hot pixel removal
+      - Crop the tensor: use CropParameters with the height and width of the image and the number of encoders of the model
+    - Feed the event tensor to the network to obtain a prediction (do so considering whether we are dealing with the first time step or not as well as handling the recurrent connection)
+    - Output post-processing (I am not that sure about this)
+      + Reapply cropping with the same CropParameter object use for preprocessing (see image_reconstructor.py, line 98)
+      + Unsharp mask filter (not even mentioned in the paper)
+      + Intensity rescaling (mentioned in the paper): use class IntensityRescaler with options (auto_hdr = True and auto_hdr_median_filter=10 (the latter is the default value))
+    - Compute the loss function using the custom function: the function requires the current and previous predicted and ground-truth images as well as the corresponding flow tensor
+    - Perform the optimization step and loss backpropagation
+
+  - Once iterating over the epoch is finished, validate
+
+
 ### Dataset/ data structure
 
 - **modified MS_COCO**: We are making use of an event-based modified version of the [MS-COCO dataset](https://cocodataset.org/#home). This modified dataset was created by producing simulated events from MS-COCO images, using the [ESIM simulator](https://rpg.ifi.uzh.ch/docs/CORL18_Rebecq.pdf). Some additional data augmentation techniques are used to further enrich the dataset (see [section 3.3 of the article](https://arxiv.org/abs/1906.07165)). This newly created dataset contains 950 training sequences and 50 validation sequences. Each sequence is made up of the following:

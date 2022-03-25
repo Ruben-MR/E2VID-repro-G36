@@ -12,9 +12,10 @@ import pandas as pd
 import cv2
 import torch
 
-#from config import DATA_DIR
+from config import DATA_DIR
 
-DATA_DIR = '/home/richard/Q3/Deep_Learning/ruben-mr.github.io/data'
+#DATA_DIR = '/home/richard/Q3/Deep_Learning/ruben-mr.github.io/data'
+
 
 def load_sequence_flow(sequence_type, sequence_number, path=DATA_DIR):
     filepath = os.path.join(path,

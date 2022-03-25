@@ -1,195 +1,15 @@
-import matplotlib.pyplot as plt
-import torch
-import torch.nn.functional as F
-from utils.loading_utils import load_model, get_device
-import numpy as np
 import argparse
-import pandas as pd
-from utils.event_readers import FixedSizeEventReader, FixedDurationEventReader
-from utils.inference_utils import events_to_voxel_grid, events_to_voxel_grid_pytorch, CropParameters, EventPreprocessor
-from utils.inference_utils import IntensityRescaler
-from utils.timers import Timer
 from model.model import E2VIDRecurrent
-import time
-from image_reconstructor import ImageReconstructor
+from utils.timers import Timer
+from utils.loading_utils import load_model, get_device
+from utils.event_readers import FixedSizeEventReader, FixedDurationEventReader
+from utils.inference_utils import events_to_voxel_grid_pytorch, EventPreprocessor
 from options.inference_options import set_inference_options
-import lpips
 from utils.ecoco_sequence_loader import *
+from utils.train_utils import plot_training_data, pad_all, loss_fn, training_loop, PreProcessOptions, RescalerOptions
+from utils.inference_utils import IntensityRescaler
+from image_reconstructor import ImageReconstructor
 
-# Result plotter
-def plot_training_data(train_losses, val_losses):
-    plt.style.use('seaborn')
-    plt.figure(figsize=(10, 10))
-    plt.subplot(2, 2, 1)
-    plt.title('training loss')
-    plt.xlabel('Iterations')
-    plt.ylabel('Loss')
-    plt.plot(train_losses)
-    plt.grid()
-
-    plt.subplot(2, 2, 3)
-    plt.title('validation loss')
-    plt.xlabel('Iterations')
-    plt.ylabel('Loss')
-    plt.plot(val_losses)
-    plt.grid()
-
-    plt.show()
-
-def pad_all(events, images):
-    width = events.shape[-1]
-    height = events.shape[-2]
-    origin_shape_events = events.shape
-    origin_shape_images = images.shape
-    # # ==========================
-    # pre-processing step here (normalizing and padding)
-    crop = CropParameters(width, height, model.num_encoders)
-    events = events.unsqueeze(dim=2)
-    images = images.unsqueeze(dim=2)
-    images = images.unsqueeze(dim=2)
-    events_after_padding = []
-    images_after_padding = []
-    for t in range(events.shape[0]):
-        for item in range(events.shape[1]):
-            event = events[t, item]
-            image = images[t, item]
-            events_after_padding.append(crop.pad(event))
-            images_after_padding.append(crop.pad(image))
-    events = torch.stack(events_after_padding, dim=0)
-    images = torch.stack(images_after_padding, dim=0)
-    events = events.view(origin_shape_events[0], origin_shape_events[1], events.shape[1], events.shape[2], events.shape[3], events.shape[4]).squeeze(dim=2)
-    images = images.view(origin_shape_images[0], origin_shape_images[1], images.shape[1], images.shape[2], images.shape[3], images.shape[4]).squeeze(dim=2)
-
-    return events, images
-
-def flow_map(im, flo):
-    """
-    Flow mapping function, it wraps the previous image into the following timestep using the flowmap provided. The
-    output will be the reconstructed image using the flow.
-    :param im: tensor of shape (B, 1, H, W) containing the reconstructed images of the different batches at the previous
-    time step
-    :param flo: tensor of shape (B, 2, H, W) containing the flowmaps between the previous and the current/next timestep
-    :return:
-    """
-    B, C, H, W = im.shape
-
-    assert (im.is_cuda is True and flo.is_cuda is True) or (im.is_cuda is False and flo.is_cuda is False), \
-        "both tensors should be on the same device"
-    assert C == 1, "the image tensor has more than one channel"
-    assert flo.shape[1] == 2, "flow tensor has wrong dimensions"
-
-    xx = torch.arange(0, W).view(1, -1).repeat(1, 1, H, 1)
-    yy = torch.arange(0, H).view(-1, 1).repeat(1, 1, 1, W)
-    xx = xx.repeat(B, 1, 1, 1)
-    yy = yy.repeat(B, 1, 1, 1)
-    grid = torch.cat((xx, yy), 1)
-
-    if im.is_cuda:
-        grid = grid.cuda()
-    vgrid = torch.autograd.Variable(grid) + flo
-
-    vgrid[:, 0, :, :] = 2.0 * vgrid[:, 0, :, :].clone() / max(W - 1, 1) - 1.0
-    vgrid[:, 1, :, :] = 2.0 * vgrid[:, 1, :, :].clone() / max(H - 1, 1) - 1.0
-
-    vgrid = vgrid.permute(0, 2, 3, 1)
-    output = F.grid_sample(im.double(), vgrid)
-    """
-    mask = torch.autograd.Variable(torch.ones(im.size())).cuda()
-    mask = F.grid_sample(mask.double(), vgrid)
-    mask[mask < 0.9999] = 0
-    mask[mask > 0] = 1
-    output *= mask
-    """
-    return output
-
-
-# Custom loss function
-def loss_fn(I_pred, I_pred_pre, I_true, first_iteration=False, flow=None):
-    # reconstruction loss
-    # image should be RGB, IMPORTANT: normalized to [-1,1]
-    if torch.cuda.is_available():
-        reconstruction_loss_fn = lpips.LPIPS(net='vgg').cuda()
-    else:
-        reconstruction_loss_fn = lpips.LPIPS(net='vgg')
-    reconstruction_loss = reconstruction_loss_fn(I_pred, I_true)
-
-    # temporal consistency loss
-    if not first_iteration:
-        alpha = 50  # hyper-parameter for weighting term (mitigate the effect of occlusions)
-        # TODO: verify correct working, notice that in the expressions below, I have removed the muliplication, that is
-        #  because the paper is a bit tricky in this aspect, but W is actually a function, not a matrix multiplication
-        if flow is not None:
-            W = flow_map(I_pred_pre, flow)
-        else:
-            W = 1
-        weighting_term = torch.exp(-alpha * torch.linalg.norm(I_pred - W, ord=2, dim=(-1, -2)))
-        temporal_loss = weighting_term * torch.linalg.norm(I_pred - W, ord=1, dim=(-1, -2))
-    else:
-        temporal_loss = 0
-
-    # total loss
-    lambda_ = 5  # weighting hyper-parameter
-    loss = reconstruction_loss + lambda_ * temporal_loss
-
-    return loss
-
-# Training function
-def training_loop(model, loss_fn, train_loader, validation_loader, lr=1e-4, epoch=5):
-    optimizer = torch.optim.Adam(model.parameters(), lr=lr)
-
-    train_losses = [] # mean loss over each epoch
-    val_losses = []  # mean loss over each epoch
-    for e in range(epoch):
-        # training process
-        epoch_losses = []  # loss of each batch
-        for x_batch, y_batch in train_loader:
-            hidden_states = None
-            I_predict_previous = None
-            for t in range(x_batch.shape[0]):
-                if t == 0:
-                    I_predict, hidden_states = model(x_batch[t], None)
-                    # print(x_batch[t].shape, I_predict.shape, y_batch[t].shape)
-                    loss = loss_fn(I_predict, None, y_batch[t], first_iteration=True).sum()
-                else:
-                    I_predict, hidden_states = model(x_batch[t], hidden_states)
-                    loss += loss_fn(I_predict, I_predict_previous, y_batch[t]).sum()
-                # update variables
-                I_predict_previous = I_predict
-            # model update
-            optimizer.zero_grad()
-            loss.backward()
-            optimizer.step()
-
-            epoch_losses.append(loss.item())  # loss for single epoch
-        train_losses.append(np.sum(epoch_losses))
-
-        with torch.no_grad():
-            epoch_losses = []  # loss of each batch
-            for x_batch_val, y_batch_val in validation_loader:
-                hidden_states = None
-                I_predict_previous = None
-                batch_loss = 0
-                for t in range(x_batch_val.shape[0]):
-                    if t == 0:
-                        I_predict, hidden_states = model(x_batch_val[t], None)
-                        loss = loss_fn(I_predict, None, y_batch_val[t], first_iteration=True).sum()
-                    else:
-                        I_predict, hidden_states = model(x_batch_val[t], hidden_states)
-                        loss = loss_fn(I_predict, I_predict_previous, y_batch_val[t]).sum()
-                    # update variables
-                    I_predict_previous = I_predict
-                    batch_loss += loss.item()
-                epoch_losses.append(batch_loss)  # loss for single epoch
-            val_losses.append(np.sum(epoch_losses))
-
-    return train_losses, val_losses
-
-# Event preprocessing options class
-class PreProcessOptions:
-    def __init__(self):
-        self.no_normalize = False
-        self.hot_pixels_file = None
-        self.flip = False
 
 use_pretrained = True
 
@@ -198,8 +18,7 @@ if __name__ == "__main__":
     # Model definition
     if not use_pretrained:
         config = {'recurrent_block_type': 'convlstm', 'num_bins': 5, 'skip_type': 'sum', 'num_encoders': 3,
-                  'base_num_channels': 32,
-                  'num_residual_blocks': 2, 'norm': 'BN', 'use_upsample_conv': True}
+                  'base_num_channels': 32, 'num_residual_blocks': 2, 'norm': 'BN', 'use_upsample_conv': True}
         model = E2VIDRecurrent(config=config)
 
         # Event preprocessor
