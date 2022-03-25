@@ -14,6 +14,7 @@ import time
 from image_reconstructor import ImageReconstructor
 from options.inference_options import set_inference_options
 import lpips
+from utils.ecoco_sequence_loader import *
 
 # Result plotter
 def plot_training_data(train_losses, val_losses):
@@ -35,6 +36,31 @@ def plot_training_data(train_losses, val_losses):
 
     plt.show()
 
+def pad_all(events, images):
+    width = events.shape[-1]
+    height = events.shape[-2]
+    origin_shape_events = events.shape
+    origin_shape_images = images.shape
+    # # ==========================
+    # pre-processing step here (normalizing and padding)
+    crop = CropParameters(width, height, model.num_encoders)
+    events = events.unsqueeze(dim=2)
+    images = images.unsqueeze(dim=2)
+    images = images.unsqueeze(dim=2)
+    events_after_padding = []
+    images_after_padding = []
+    for t in range(events.shape[0]):
+        for item in range(events.shape[1]):
+            event = events[t, item]
+            image = images[t, item]
+            events_after_padding.append(crop.pad(event))
+            images_after_padding.append(crop.pad(image))
+    events = torch.stack(events_after_padding, dim=0)
+    images = torch.stack(images_after_padding, dim=0)
+    events = events.view(origin_shape_events[0], origin_shape_events[1], events.shape[1], events.shape[2], events.shape[3], events.shape[4]).squeeze(dim=2)
+    images = images.view(origin_shape_images[0], origin_shape_images[1], images.shape[1], images.shape[2], images.shape[3], images.shape[4]).squeeze(dim=2)
+
+    return events, images
 
 def flow_map(im, flo):
     """
@@ -81,7 +107,10 @@ def flow_map(im, flo):
 def loss_fn(I_pred, I_pred_pre, I_true, first_iteration=False, flow=None):
     # reconstruction loss
     # image should be RGB, IMPORTANT: normalized to [-1,1]
-    reconstruction_loss_fn = lpips.LPIPS(net='vgg').cuda()
+    if torch.cuda.is_available():
+        reconstruction_loss_fn = lpips.LPIPS(net='vgg').cuda()
+    else:
+        reconstruction_loss_fn = lpips.LPIPS(net='vgg')
     reconstruction_loss = reconstruction_loss_fn(I_pred, I_true)
 
     # temporal consistency loss
@@ -211,9 +240,8 @@ if __name__ == "__main__":
         print('Sensor size: {} x {}'.format(width, height))
 
         # Load model
-        model = load_model(args.path_to_model)
         device = get_device(args.use_gpu)
-
+        model = load_model(args.path_to_model, map_location = device)
         model = model.to(device)
         # model.eval()
         #
@@ -255,29 +283,65 @@ if __name__ == "__main__":
     # Do not worry about code above!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     #============================================================================================================================================
     # ignore the code above, they are just used for taking out the event tensor and model
-    # let's make a pseudo-dataset!!
-    device = torch.device('cuda:0')
-    events = event_tensor.unsqueeze(dim=0)
-    # ==========================
-    # pre-processing step here (normalizing and padding)
-    crop = CropParameters(width, height, model.num_encoders)
-    events = crop.pad(events) # (1, 5, 184, 240)
-    # ==========================================
+    device = get_device(True)
+    height, width = (180, 240)
+    DATA_DIR = '/home/richard/Q3/Deep_Learning/ruben-mr.github.io/data'
 
-    #events = events.view((1,*events.shape)) # (1, 1, 5, 184, 240)
-    events = events.unsqueeze(dim=0)
-    sequence_length = events.shape[0]
-    batch_size = events.shape[1]
-    events = events.tile((sequence_length, batch_size, 1, 1, 1)) # (sequence_len, batch_size, channel, H, W)
-    events = events.to(device)
-    labels = torch.rand(events.shape).detach()
-    labels = labels[:, :, 0:1, :, :] # TODO: dealing with multiple channels
-    labels = labels.to(device)
+    events = torch.tensor(full_event_tensor(range(10), 5, DATA_DIR)[0], dtype=torch.float64)
+    images = torch.tensor(full_image_tensor(range(10), 5, DATA_DIR)[0], dtype=torch.float64)
 
-    train_loader = [(events, labels)]
-    validation_loader = [(events.detach(), labels)]
-    #============================================================================
+    #=============================
+    # data pre-processing
+    events, images = pad_all(events, images)
+    #=============================
+    train_loader = [(events, images)]
+    validation_loader = [(events, images)]
+
 
     train_losses, val_losses = training_loop(model, loss_fn, train_loader, validation_loader)
     plot_training_data(train_losses, val_losses)
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+    #====================================================
+    # # old test code
+    # # ignore the code above, they are just used for taking out the event tensor and model
+    # # let's make a pseudo-dataset!!
+    # device = torch.device('cuda:0')
+    # events = event_tensor.unsqueeze(dim=0)
+    # # ==========================
+    # # pre-processing step here (normalizing and padding)
+    # crop = CropParameters(width, height, model.num_encoders)
+    # events = crop.pad(events) # (1, 5, 184, 240)
+    # # ==========================================
+    #
+    # #events = events.view((1,*events.shape)) # (1, 1, 5, 184, 240)
+    # events = events.unsqueeze(dim=0)
+    # sequence_length = events.shape[0]
+    # batch_size = events.shape[1]
+    # events = events.tile((sequence_length, batch_size, 1, 1, 1)) # (sequence_len, batch_size, channel, H, W)
+    # events = events.to(device)
+    # labels = torch.rand(events.shape).detach()
+    # labels = labels[:, :, 0:1, :, :] # TODO: dealing with multiple channels
+    # labels = labels.to(device)
+    #
+    # train_loader = [(events, labels)]
+    # validation_loader = [(events.detach(), labels)]
+    # #============================================================================
+    #
+    # train_losses, val_losses = training_loop(model, loss_fn, train_loader, validation_loader)
+    # plot_training_data(train_losses, val_losses)
+    #===================================================
