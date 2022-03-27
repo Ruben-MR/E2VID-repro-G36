@@ -12,10 +12,7 @@ import pandas as pd
 import cv2
 import torch
 
-#from config import DATA_DIR
-
-DATA_DIR = '/home/richard/Q3/Deep_Learning/ruben-mr.github.io/data'
-
+from config import DATA_DIR
 
 def load_sequence_flow(sequence_type, sequence_number, path=DATA_DIR):
     filepath = os.path.join(path,
@@ -221,6 +218,8 @@ if __name__ == '__main__':
 
     sequence_type = "train"     # Either 'train' or 'validation'
     sequence_number = 8         # int, [0-949] with 'train', [950-1000] with 'validation'
+
+    # DATA_DIR = '/home/richard/Q3/Deep_Learning/ruben-mr.github.io/data'
 
     # flow, boundary_timestamps = load_flow(sequence_type, sequence_number)
     # print(f"{flow[0].shape}")

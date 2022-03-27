@@ -104,14 +104,14 @@ if __name__ == "__main__":
     # ignore the code above, they are just used for taking out the event tensor and model
     device = get_device(True)
     height, width = (180, 240)
-    DATA_DIR = '/home/richard/Q3/Deep_Learning/ruben-mr.github.io/data'
+    #DATA_DIR = '/home/richard/Q3/Deep_Learning/ruben-mr.github.io/data'
 
-    events = torch.tensor(full_event_tensor(range(10), 5, DATA_DIR)[0], dtype=torch.float64)
-    images = torch.tensor(full_image_tensor(range(10), 5, DATA_DIR)[0], dtype=torch.float64)
+    events = torch.tensor(full_event_tensor(range(10), 5, DATA_DIR)[0], dtype=torch.float64).cuda().float()
+    images = torch.tensor(full_image_tensor(range(10), 5, DATA_DIR)[0], dtype=torch.float64).cuda().float()
 
     #=============================
     # data pre-processing
-    events, images = pad_all(events, images)
+    events, images = pad_all(model, events, images)
     #=============================
     train_loader = [(events, images)]
     validation_loader = [(events, images)]
