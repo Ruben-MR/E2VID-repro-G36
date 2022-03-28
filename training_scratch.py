@@ -21,7 +21,6 @@ if __name__ == "__main__":
 
     # ignore the code above, they are just used for taking out the event tensor and model
     device = get_device(True)
-    height, width = (180, 240)
     # DATA_DIR = '/home/richard/Q3/Deep_Learning/ruben-mr.github.io/data'
     batch_size = 2
     sequence_length = 5
@@ -40,7 +39,7 @@ if __name__ == "__main__":
     else:
         reconstruction_loss_fn = lpips.LPIPS(net='vgg')
 
-    train_losses, val_losses = training_loop(model, loss_fn, train_loader, validation_loader, reconstruction_loss_fn, epoch=1)
+    train_losses, val_losses = training_loop(model, loss_fn, train_loader, validation_loader, reconstruction_loss_fn, epoch=5)
     print(train_losses)
     print(val_losses)
     plot_training_data(train_losses, val_losses)

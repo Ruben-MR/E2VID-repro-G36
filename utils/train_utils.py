@@ -35,14 +35,14 @@ def plot_training_data(tr_losses, v_losses):
     """
     plt.style.use('seaborn')
     plt.figure(figsize=(10, 10))
-    plt.subplot(2, 2, 1)
+    plt.subplot(2, 1, 1)
     plt.title('training loss')
     plt.xlabel('Iterations')
     plt.ylabel('Loss')
     plt.plot(tr_losses)
     plt.grid()
 
-    plt.subplot(2, 2, 3)
+    plt.subplot(2, 1, 2)
     plt.title('validation loss')
     plt.xlabel('Iterations')
     plt.ylabel('Loss')
