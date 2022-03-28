@@ -1,7 +1,7 @@
 from utils.ecoco_sequence_loader import *
 from model.model import E2VIDRecurrent
 from utils.train_utils import PreProcessOptions, RescalerOptions
-from utils.inference_utils import EventPreprocessor
+from utils.inference_utils import EventPreprocessor, IntensityRescaler
 from utils.train_utils import plot_training_data, pad_all, loss_fn, training_loop
 from utils.loading_utils import get_device
 
@@ -15,6 +15,8 @@ if __name__ == "__main__":
     # Event preprocessor
     options = PreProcessOptions()
     preprocessor = EventPreprocessor(options)
+    options = RescalerOptions()
+    rescaler = IntensityRescaler(options)
 
     # ignore the code above, they are just used for taking out the event tensor and model
     device = get_device(True)
