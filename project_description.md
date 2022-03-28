@@ -11,7 +11,7 @@ If you use any of this code, please cite the following publications:
 @Article{Rebecq19pami,
   author        = {Henri Rebecq and Ren{\'{e}} Ranftl and Vladlen Koltun and Davide Scaramuzza},
   title         = {High Speed and High Dynamic Range Video with an Event Camera},
-  journal       = {{IEEE} Trans. Pattern Anal. Mach. Intell. (T-PAMI)},
+  journal       = {IEEE Trans. Pattern Anal. Mach. Intell. (T-PAMI)},
   url           = {http://rpg.ifi.uzh.ch/docs/TPAMI19_Rebecq.pdf},
   year          = 2019
 }
@@ -22,7 +22,7 @@ If you use any of this code, please cite the following publications:
 @Article{Rebecq19cvpr,
   author        = {Henri Rebecq and Ren{\'{e}} Ranftl and Vladlen Koltun and Davide Scaramuzza},
   title         = {Events-to-Video: Bringing Modern Computer Vision to Event Cameras},
-  journal       = {{IEEE} Conf. Comput. Vis. Pattern Recog. (CVPR)},
+  journal       = {IEEE Conf. Comput. Vis. Pattern Recog. (CVPR)},
   year          = 2019
 }
 ```
