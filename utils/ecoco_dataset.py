@@ -1,5 +1,4 @@
 import os.path
-
 import matplotlib.pyplot as plt
 import torch.utils.data
 import numpy as np
@@ -100,6 +99,7 @@ if __name__ == '__main__':
     seq_length = 3
     start_idx = 8
     data_path = DATA_DIR
+    sequence_index = 42
 
     dataset = ECOCO_Dataset(sequence_length=seq_length, start_index=start_idx, path=data_path)
 
@@ -107,7 +107,7 @@ if __name__ == '__main__':
     # print(f"{dataset.start_idx=}")
     # print(f"{dataset.root_path=}")
 
-    event_tensor, frame_tensor, flow_tensor = dataset.__getitem__(42)
+    event_tensor, frame_tensor, flow_tensor = dataset.__getitem__(sequence_index)
 
     print(f"{type(event_tensor), event_tensor.shape=}")
     print(f"{type(frame_tensor), frame_tensor.shape=}")
