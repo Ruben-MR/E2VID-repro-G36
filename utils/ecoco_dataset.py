@@ -9,14 +9,26 @@ from torchvision.io import read_image
 
 class ECOCO_Dataset(torch.utils.data.Dataset):
 
-    def __init__(self, sequence_length=8, start_index=0, path=DATA_DIR):
+    def __init__(self, start_index=0, sequence_length=8, path=DATA_DIR):
         """
         Dataset class for instantiating individual elements of the event dataset.
+
         :param sequence_length: the length of the video sequence. By this we mean the number of transition steps between
         images in the video sequence. This essentially means that the produced sequences will contain
         (sequence_length + 1) images, and the corresponding transition tensors (both flow, and event) in between those
         images (so, an amount equal to sequence_length, each).
+
+        :param start_index: the first index from which to retrieve the sequence.
+
         :param path: the path of the directory within which the dataset directory can be found.
+
+        As an example, with start_index=8 and sequence_length=3,
+        the indices of the tensors to retrieve will be:
+            - event: [8, 9, 10]
+            - frame: [8, 9, 10, 11]
+            - flow: [9, 10, 11]
+        (differences in the indices per type of tensor are due to the way the database indexing is done)
+
         """
         assert start_index <= 50
 
@@ -59,7 +71,7 @@ class ECOCO_Dataset(torch.utils.data.Dataset):
         events = torch.zeros(size=[self.sequence_length, 5, 180, 240])
 
         for i, sequence_index in enumerate(range(self.start_idx, self.start_idx + self.sequence_length)):
-            # print(f"{i, sequence_index=}")
+            print(f"{i, sequence_index=}")
             flow = np.load(os.path.join(flow_path, "disp01_{:>010d}.npy".format(sequence_index+1)))
             event = np.load(os.path.join(event_path, "event_tensor_{:>010d}.npy".format(sequence_index)))
             frame = read_image(os.path.join(frame_path, "frame_{:>010d}.png".format(sequence_index)))
@@ -74,7 +86,7 @@ class ECOCO_Dataset(torch.utils.data.Dataset):
         # print(f"{self.sequence_length, self.start_idx + self.sequence_length=}")
         last_frame = read_image(os.path.join(frame_path,
                                              "frame_{:>010d}.png".format(self.start_idx + self.sequence_length)))
-        # print(f"{type(last_frame), last_frame.shape=}")
+        print(f"{type(last_frame), last_frame.shape=}")
         frames[self.sequence_length] = last_frame
 
         return events, frames, flows
@@ -85,8 +97,8 @@ class ECOCO_Dataset(torch.utils.data.Dataset):
 
 if __name__ == '__main__':
 
-    seq_length = 8
-    start_idx = 12
+    seq_length = 3
+    start_idx = 8
     data_path = DATA_DIR
 
     dataset = ECOCO_Dataset(sequence_length=seq_length, start_index=start_idx, path=data_path)
