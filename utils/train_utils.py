@@ -2,7 +2,6 @@ import numpy as np
 import torch
 import matplotlib.pyplot as plt
 import torch.nn.functional as F
-import lpips
 from utils.inference_utils import CropParameters
 
 
@@ -127,7 +126,7 @@ def flow_map(im, flo):
     return output
 
 
-def loss_fn(I_pred, I_pred_pre, I_true, I_true_pre, flow=None, first_iteration=False):
+def loss_fn(I_pred, I_pred_pre, I_true, I_true_pre, reconstruction_loss_fn, flow=None, first_iteration=False):
     """
     Custom loss function as specified by the authors, takes the current and last predicted and ground-truth images
     and computes the loss function with perceptual and temporal consistency components using a value of 50 for the alpha
@@ -143,10 +142,6 @@ def loss_fn(I_pred, I_pred_pre, I_true, I_true_pre, flow=None, first_iteration=F
     """
     # reconstruction loss
     # image should be RGB, IMPORTANT: normalized to [-1,1]
-    if torch.cuda.is_available():
-        reconstruction_loss_fn = lpips.LPIPS(net='vgg').cuda()
-    else:
-        reconstruction_loss_fn = lpips.LPIPS(net='vgg')
     reconstruction_loss = reconstruction_loss_fn(I_pred, I_true)
 
     # temporal consistency loss
@@ -173,7 +168,7 @@ def loss_fn(I_pred, I_pred_pre, I_true, I_true_pre, flow=None, first_iteration=F
 
 
 # Training function
-def training_loop(model, loss_fn, train_loader, validation_loader, lr=1e-4, epoch=5):
+def training_loop(model, loss_fn, train_loader, validation_loader, rec_fun, lr=1e-4, epoch=5):
     """
     Function for implementing the training loop of the network
     :param model: network to be trained
@@ -200,10 +195,10 @@ def training_loop(model, loss_fn, train_loader, validation_loader, lr=1e-4, epoc
                 if t == 0:
                     I_predict, hidden_states = model(x_batch[t], None)
                     # print(x_batch[t].shape, I_predict.shape, y_batch[t].shape)
-                    loss = loss_fn(I_predict, None, y_batch[t], None, first_iteration=True).sum()
+                    loss = loss_fn(I_predict, None, y_batch[t], None, rec_fun, first_iteration=True).sum()
                 else:
                     I_predict, hidden_states = model(x_batch[t], hidden_states)
-                    loss += loss_fn(I_predict, I_predict_previous, y_batch[t], y_batch[t - 1]).sum()
+                    loss += loss_fn(I_predict, I_predict_previous, y_batch[t], y_batch[t - 1], rec_fun).sum()
                 # update variables
                 I_predict_previous = I_predict
             # model update

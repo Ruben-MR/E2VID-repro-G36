@@ -6,6 +6,7 @@ from utils.inference_utils import events_to_voxel_grid_pytorch
 from options.inference_options import set_inference_options
 from utils.ecoco_sequence_loader import *
 from utils.train_utils import plot_training_data, pad_all, loss_fn, training_loop
+import lpips
 from utils.inference_utils import IntensityRescaler
 from image_reconstructor import ImageReconstructor
 
@@ -103,8 +104,12 @@ if __name__ == "__main__":
     train_loader = [(events, images)]
     validation_loader = [(events, images)]
 
+    if torch.cuda.is_available():
+        reconstruction_loss_fn = lpips.LPIPS(net='vgg').cuda()
+    else:
+        reconstruction_loss_fn = lpips.LPIPS(net='vgg')
 
-    train_losses, val_losses = training_loop(model, loss_fn, train_loader, validation_loader)
+    train_losses, val_losses = training_loop(model, loss_fn, train_loader, validation_loader, reconstruction_loss_fn)
     plot_training_data(train_losses, val_losses)
 
 
