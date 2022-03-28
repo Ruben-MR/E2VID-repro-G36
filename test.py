@@ -39,6 +39,8 @@ def flow_map(im, flo):
 
 
 if __name__ == "__main__":
+    torch.cuda.empty_cache()
+    """
     flow = np.load("data/ecoco_depthmaps_test/train/sequence_0000000001/flow/disp01_0000000001.npy")
     im1 = img.imread("data/ecoco_depthmaps_test/train/sequence_0000000001/frames/frame_0000000000.png")
     im2 = img.imread("data/ecoco_depthmaps_test/train/sequence_0000000001/frames/frame_0000000001.png")
@@ -72,3 +74,4 @@ if __name__ == "__main__":
     plt.figure()
     plt.imshow(im2_1)
     plt.show()
+    """
