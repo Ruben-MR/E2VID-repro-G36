@@ -23,9 +23,10 @@ if __name__ == "__main__":
     device = get_device(True)
     height, width = (180, 240)
     # DATA_DIR = '/home/richard/Q3/Deep_Learning/ruben-mr.github.io/data'
-
-    events = torch.tensor(full_event_tensor(range(5), 5, DATA_DIR)[0], dtype=torch.float64).cuda().float()
-    images = torch.tensor(full_image_tensor(range(5), 5, DATA_DIR)[0], dtype=torch.float64).cuda().float()
+    batch_size = 2
+    sequence_length = 5
+    events = torch.tensor(full_event_tensor(range(batch_size), sequence_length, DATA_DIR)[0], dtype=torch.float64).cuda().float()
+    images = torch.tensor(full_image_tensor(range(batch_size), sequence_length, DATA_DIR)[0], dtype=torch.float64).cuda().float()
 
     # =============================
     # data pre-processing
@@ -39,5 +40,7 @@ if __name__ == "__main__":
     else:
         reconstruction_loss_fn = lpips.LPIPS(net='vgg')
 
-    train_losses, val_losses = training_loop(model, loss_fn, train_loader, validation_loader, reconstruction_loss_fn)
+    train_losses, val_losses = training_loop(model, loss_fn, train_loader, validation_loader, reconstruction_loss_fn, epoch=1)
+    print(train_losses)
+    print(val_losses)
     plot_training_data(train_losses, val_losses)

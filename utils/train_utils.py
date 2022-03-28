@@ -220,10 +220,10 @@ def training_loop(model, loss_fn, train_loader, validation_loader, rec_fun, lr=1
                 for t in range(x_batch_val.shape[0]):
                     if t == 0:
                         I_predict, hidden_states = model(x_batch_val[t], None)
-                        loss = loss_fn(I_predict, None, y_batch_val[t], None, first_iteration=True).sum()
+                        loss = loss_fn(I_predict, None, y_batch_val[t], None, rec_fun, first_iteration=True).sum()
                     else:
                         I_predict, hidden_states = model(x_batch_val[t], hidden_states)
-                        loss = loss_fn(I_predict, I_predict_previous, y_batch_val[t], y_batch_val[t - 1]).sum()
+                        loss = loss_fn(I_predict, I_predict_previous, y_batch_val[t], y_batch_val[t - 1], rec_fun).sum()
                     # update variables
                     I_predict_previous = I_predict
                     batch_loss += loss.item()
