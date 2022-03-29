@@ -23,23 +23,25 @@ if __name__ == "__main__":
     # ignore the code above, they are just used for taking out the event tensor and model
     device = get_device(True)
     # DATA_DIR = '/home/richard/Q3/Deep_Learning/ruben-mr.github.io/data'
+    num_epochs = 2
+    batch_size = 2
     seq_length = 3
-    start_idx = 8
+    start_idx = 0
     data_path = DATA_DIR
-    sequence_index = 42
 
     train_dataset = ECOCO_Train_Dataset(sequence_length=seq_length, start_index=start_idx, path=data_path)
     val_dataset = ECOCO_Validation_Dataset(sequence_length=seq_length, start_index=start_idx, path=data_path)
 
-    train_loader = torch.utils.data.DataLoader(train_dataset, batch_size=2, shuffle=True)
-    val_loader = torch.utils.data.DataLoader(train_dataset, batch_size=2, shuffle=True)
+    train_loader = torch.utils.data.DataLoader(train_dataset, batch_size=batch_size, shuffle=True)
+    val_loader = torch.utils.data.DataLoader(val_dataset, batch_size=batch_size, shuffle=True)
 
     if torch.cuda.is_available():
         reconstruction_loss_fn = lpips.LPIPS(net='vgg').cuda()
     else:
         reconstruction_loss_fn = lpips.LPIPS(net='vgg')
 
-    train_losses, val_losses = training_loop(model, loss_fn, train_loader, val_loader, reconstruction_loss_fn, epoch=2)
+    train_losses, val_losses = training_loop(model, loss_fn, train_loader, val_loader, reconstruction_loss_fn,
+                                             epoch=num_epochs)
     print(train_losses)
     print(val_losses)
     plot_training_data(train_losses, val_losses)

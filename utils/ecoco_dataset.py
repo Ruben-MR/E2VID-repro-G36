@@ -1,5 +1,4 @@
 import os.path
-import matplotlib.pyplot as plt
 import torch.utils.data
 import numpy as np
 from config import DATA_DIR
@@ -82,7 +81,7 @@ class ECOCO_Train_Dataset(torch.utils.data.Dataset):
         # print(f"{type(last_frame), last_frame.shape=}")
         frames[self.sequence_length] = last_frame
 
-        return events, frames, flows
+        return events.cuda(), frames.cuda(), flows.cuda()
 
     def __len__(self):
         return 950
@@ -154,7 +153,7 @@ class ECOCO_Validation_Dataset(torch.utils.data.Dataset):
         # print(f"{type(last_frame), last_frame.shape=}")
         frames[self.sequence_length] = last_frame
 
-        return events, frames, flows
+        return events.cuda(), frames.cuda(), flows.cuda()
 
     def __len__(self):
         return 50
@@ -181,12 +180,16 @@ if __name__ == '__main__':
     print(f"{type(flow_tensor), flow_tensor.shape=}")
 
     train_loader = torch.utils.data.DataLoader(train_dataset, batch_size=2, shuffle=True)
-    val_loader = torch.utils.data.DataLoader(train_dataset, batch_size=2, shuffle=True)
-
-    for events, frames, flows in val_loader:
+    val_loader = torch.utils.data.DataLoader(val_dataset, batch_size=2, shuffle=True)
+    i = 0
+    for events, frames, flows in train_loader:
         assert events.shape == torch.Size([2, 3, 5, 180, 240]) and frames.shape == torch.Size([2, 4, 1, 180, 240]) \
                and flows.shape == torch.Size([2, 3, 2, 180, 240])
-
+        #print(events.is_cuda)
+        #print(frames.is_cuda)
+        #print(flows.is_cuda)
+        i += 1
+    print(i)
     # print("\n\nFrames")
     # for i, image in enumerate(frame_tensor):
     #     plt.imshow(image)

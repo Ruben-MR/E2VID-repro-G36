@@ -187,18 +187,38 @@ def training_loop(model, loss_fn, train_loader, validation_loader, rec_fun, lr=1
     for e in range(epoch):
         epoch_losses = []  # loss of each batch
         # Load the current data batch
-        for x_batch, y_batch in train_loader:
+        for x_batch, y_batch, flow_batch in train_loader:
             hidden_states = None
             I_predict_previous = None
             # Iterate over the timesteps (??)
-            for t in range(x_batch.shape[0]):
-                if t == 0:
-                    I_predict, hidden_states = model(x_batch[t], None)
+            for t in range(x_batch.shape[1]):
+                # TODO: discuss these changes
+                # Modify accordingly in the validation part
+                # Option 1: not perform temporal consistency loss on first iteration (actually first two, according to
+                # authors) However, we will probably end up with much smaller sequences, so I am not sure whether we can
+                # afford to do this
+                if t < 1:
+                    I_predict, hidden_states = model(x_batch[:, t], None)
                     # print(x_batch[t].shape, I_predict.shape, y_batch[t].shape)
-                    loss = loss_fn(I_predict, None, y_batch[t], None, rec_fun, first_iteration=True).sum()
+                    loss = loss_fn(I_predict, None, y_batch[:, t + 1], None, rec_fun,
+                                   flow=None, first_iteration=True).sum()
                 else:
-                    I_predict, hidden_states = model(x_batch[t], hidden_states)
-                    loss += loss_fn(I_predict, I_predict_previous, y_batch[t], y_batch[t - 1], rec_fun).sum()
+                    I_predict, hidden_states = model(x_batch[:, t], hidden_states)
+                    loss += loss_fn(I_predict, I_predict_previous, y_batch[:, t + 1], y_batch[:, t], rec_fun,
+                                    flow=flow_batch[:, t]).sum()
+                """
+                # Option 2: perform temporal consistency loss on first iterations using the first ground truth image
+                # as previous image
+                if t < 1:
+                    I_predict, hidden_states = model(x_batch[:, t], None)
+                    # print(x_batch[t].shape, I_predict.shape, y_batch[t].shape)
+                    loss = loss_fn(I_predict, y_batch[:, t], y_batch[:, t + 1], y_batch[:, t], rec_fun,
+                                   flow=flow_batch[:, t]).sum()
+                else:
+                    I_predict, hidden_states = model(x_batch[:, t], hidden_states)
+                    loss += loss_fn(I_predict, I_predict_previous, y_batch[:, t + 1], y_batch[:, t], rec_fun,
+                                    flow=flow_batch[:, t]).sum()
+                """
                 # update variables
                 I_predict_previous = I_predict
             # model update
@@ -213,12 +233,12 @@ def training_loop(model, loss_fn, train_loader, validation_loader, rec_fun, lr=1
         with torch.no_grad():
             epoch_losses = []  # loss of each batch
             # Load the data
-            for x_batch_val, y_batch_val in validation_loader:
+            for x_batch_val, y_batch_val, flow_batch_val in validation_loader:
                 hidden_states = None
                 I_predict_previous = None
                 batch_loss = 0
                 for t in range(x_batch_val.shape[0]):
-                    if t == 0:
+                    if t < 1:
                         I_predict, hidden_states = model(x_batch_val[t], None)
                         loss = loss_fn(I_predict, None, y_batch_val[t], None, rec_fun, first_iteration=True).sum()
                     else:
