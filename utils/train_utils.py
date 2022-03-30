@@ -248,6 +248,7 @@ def training_loop(model, loss_fn, train_loader, validation_loader, rec_fun, lr=1
             epoch_losses = []  # loss of each batch
             # Load the data
             for i, (x_batch_val, y_batch_val, flow_batch_val) in enumerate(validation_loader):
+                print("validation progress: epoch {}: batch {}/{}".format(e + 1, i, len(validation_loader.dataset) / x_batch_val.shape[0]))
                 x_batch_val, y_batch_val, flow_batch_val = pad_all(x_batch_val, y_batch_val, flow_batch_val)
                 hidden_states = None
                 I_predict_previous = None
