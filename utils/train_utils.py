@@ -196,9 +196,11 @@ def training_loop(model, loss_fn, train_loader, validation_loader, rec_fun, lr=1
     val_losses = []  # mean loss over each epoch
     # Start iterating for the specific number of epochs
     for e in range(epoch):
+        #print("training progress: epoch {}/{}".format(e, epoch))
         epoch_losses = []  # loss of each batch
         # Load the current data batch
-        for x_batch, y_batch, flow_batch in train_loader:
+        for i, (x_batch, y_batch, flow_batch) in enumerate(train_loader):
+            print("tranining progress: epoch {}: batch {}/{}".format(e+1, i, len(train_loader.dataset)/x_batch.shape[0]))
             x_batch, y_batch, flow_batch = pad_all(x_batch, y_batch, flow_batch)
             hidden_states = None
             I_predict_previous = None
@@ -245,7 +247,7 @@ def training_loop(model, loss_fn, train_loader, validation_loader, rec_fun, lr=1
         with torch.no_grad():
             epoch_losses = []  # loss of each batch
             # Load the data
-            for x_batch_val, y_batch_val, flow_batch_val in validation_loader:
+            for i, (x_batch_val, y_batch_val, flow_batch_val) in enumerate(validation_loader):
                 x_batch_val, y_batch_val, flow_batch_val = pad_all(x_batch_val, y_batch_val, flow_batch_val)
                 hidden_states = None
                 I_predict_previous = None
