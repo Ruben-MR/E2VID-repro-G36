@@ -52,31 +52,18 @@ def plot_training_data(tr_losses, v_losses):
     plt.show()
 
 
-def pad_all(model, events, images):
-    width = events.shape[-1]
-    height = events.shape[-2]
+def pad_events(events, crop):
     origin_shape_events = events.shape
-    origin_shape_images = images.shape
-    # # ==========================
-    # pre-processing step here (normalizing and padding)
-    crop = CropParameters(width, height, model.num_encoders)
     events = events.unsqueeze(dim=2)
-    images = images.unsqueeze(dim=2)
-    images = images.unsqueeze(dim=2)
     events_after_padding = []
-    images_after_padding = []
     for t in range(events.shape[0]):
         for item in range(events.shape[1]):
             event = events[t, item]
-            image = images[t, item]
-            events_after_padding.append(crop.pad(event))
-            images_after_padding.append(crop.pad(image))
+            event = crop.pad(event)
+            events_after_padding.append(event)
     events = torch.stack(events_after_padding, dim=0)
-    images = torch.stack(images_after_padding, dim=0)
     events = events.view(origin_shape_events[0], origin_shape_events[1], events.shape[1], events.shape[2], events.shape[3], events.shape[4]).squeeze(dim=2)
-    images = images.view(origin_shape_images[0], origin_shape_images[1], images.shape[1], images.shape[2], images.shape[3], images.shape[4]).squeeze(dim=2)
-
-    return events, images
+    return events
 
 
 def flow_map(im, flo):
@@ -115,7 +102,7 @@ def flow_map(im, flo):
     # Permute to get the correct dimensions for the sampling function
     vgrid = vgrid.permute(0, 2, 3, 1)
     # Sample points from the previuos image according to the indexing grid
-    output = F.grid_sample(im.double(), vgrid)
+    output = F.grid_sample(im, vgrid)
     """
     mask = torch.autograd.Variable(torch.ones(im.size())).cuda()
     mask = F.grid_sample(mask.double(), vgrid)
@@ -135,9 +122,9 @@ def loss_fn(I_pred, I_pred_pre, I_true, I_true_pre, reconstruction_loss_fn, flow
     :param I_pred_pre: predicted image at the previous timestep
     :param I_true: ground-truth image of the latest prediction
     :param I_true_pre: ground-truth image of the previous timestep
+    :param flow: flow tensor between the previous and the current timestep of the sequence
     :param first_iteration: boolean for skipping the temporal consistency loss if the loss is being computed for the
     first timestep of the sequence
-    :param flow: flow tensor between the previous and the current timestep of the sequence
     :return: value of the loss function
     """
     # reconstruction loss
@@ -168,13 +155,14 @@ def loss_fn(I_pred, I_pred_pre, I_true, I_true_pre, reconstruction_loss_fn, flow
 
 
 # Training function
-def training_loop(model, loss_fn, train_loader, validation_loader, rec_fun, lr=1e-4, epoch=5):
+def training_loop(model, train_loader, validation_loader, rec_fun, cropper, lr=1e-4, epoch=5):
     """
     Function for implementing the training loop of the network
     :param model: network to be trained
-    :param loss_fn: loss function to be used for backpropagation
     :param train_loader: data loader
     :param validation_loader: validation data loader
+    :param rec_fun: reconstruction loss function
+    :param cropper: class for cropping the event data before feeding the network
     :param lr:learning rate
     :param epoch:number of epochs of the training
     :return: list of training and validation losses
@@ -190,6 +178,7 @@ def training_loop(model, loss_fn, train_loader, validation_loader, rec_fun, lr=1
         for x_batch, y_batch, flow_batch in train_loader:
             hidden_states = None
             I_predict_previous = None
+            x_batch = pad_events(x_batch, cropper)
             # Iterate over the timesteps (??)
             for t in range(x_batch.shape[1]):
                 # TODO: discuss these changes
@@ -199,11 +188,13 @@ def training_loop(model, loss_fn, train_loader, validation_loader, rec_fun, lr=1
                 # afford to do this
                 if t < 1:
                     I_predict, hidden_states = model(x_batch[:, t], None)
+                    I_predict = I_predict[:, :, cropper.iy0:cropper.iy1, cropper.ix0:cropper.ix1]
                     # print(x_batch[t].shape, I_predict.shape, y_batch[t].shape)
                     loss = loss_fn(I_predict, None, y_batch[:, t + 1], None, rec_fun,
                                    flow=None, first_iteration=True).sum()
                 else:
                     I_predict, hidden_states = model(x_batch[:, t], hidden_states)
+                    I_predict = I_predict[:, :, cropper.iy0:cropper.iy1, cropper.ix0:cropper.ix1]
                     loss += loss_fn(I_predict, I_predict_previous, y_batch[:, t + 1], y_batch[:, t], rec_fun,
                                     flow=flow_batch[:, t]).sum()
                 """
@@ -236,14 +227,17 @@ def training_loop(model, loss_fn, train_loader, validation_loader, rec_fun, lr=1
             for x_batch_val, y_batch_val, flow_batch_val in validation_loader:
                 hidden_states = None
                 I_predict_previous = None
+                x_batch_val = pad_events(x_batch_val, cropper)
                 batch_loss = 0
                 for t in range(x_batch_val.shape[1]):
                     if t < 1:
                         I_predict, hidden_states = model(x_batch_val[:, t], None)
+                        I_predict = I_predict[:, :, cropper.iy0:cropper.iy1, cropper.ix0:cropper.ix1]
                         loss = loss_fn(I_predict, None, y_batch_val[:, t + 1], None, rec_fun,
                                        flow=None, first_iteration=True).sum()
                     else:
                         I_predict, hidden_states = model(x_batch_val[:, t], hidden_states)
+                        I_predict = I_predict[:, :, cropper.iy0:cropper.iy1, cropper.ix0:cropper.ix1]
                         loss = loss_fn(I_predict, I_predict_previous, y_batch_val[:, t + 1], y_batch_val[:, t], rec_fun,
                                        flow=flow_batch_val[:, t]).sum()
                     # update variables
