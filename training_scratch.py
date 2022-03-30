@@ -25,7 +25,7 @@ if __name__ == "__main__":
     # DATA_DIR = '/home/richard/Q3/Deep_Learning/ruben-mr.github.io/data'
     num_epochs = 2
     batch_size = 2
-    seq_length = 3
+    seq_length = 8
     start_idx = 0
     data_path = DATA_DIR
 
