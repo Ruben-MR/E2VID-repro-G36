@@ -260,7 +260,7 @@ def training_loop(model, train_loader, validation_loader, rec_fun, cropper, prep
             val_losses.append(np.sum(epoch_losses))
 
     if save:
-        name = datetime.now().strftime("saved_%d-%m-%Y_%H:%M")
+        name = datetime.now().strftime("saved_%d-%m-%Y_%H-%M")
         fullpath = os.path.join(SAVED_DIR, name)
         torch.save(model.state_dict(), fullpath)
         print(f"SAVED MODEL AS:\n"
