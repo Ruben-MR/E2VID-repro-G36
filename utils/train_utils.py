@@ -156,7 +156,7 @@ def loss_fn(I_pred, I_pred_pre, I_true, I_true_pre, reconstruction_loss_fn, flow
 
 
 # Training function
-def training_loop(model, train_loader, validation_loader, rec_fun, cropper, lr=1e-4, epoch=5):
+def training_loop(model, train_loader, validation_loader, rec_fun, cropper, preproc, postproc, lr=1e-4, epoch=5):
     """
     Function for implementing the training loop of the network
     :param model: network to be trained
@@ -164,6 +164,8 @@ def training_loop(model, train_loader, validation_loader, rec_fun, cropper, lr=1
     :param validation_loader: validation data loader
     :param rec_fun: reconstruction loss function
     :param cropper: class for cropping the event data before feeding the network
+    :param preproc: class for performing event tensor preprocessing (normalization for now)
+    :param postproc: class for performing event tensor postprocessing (intensity rescaling)
     :param lr:learning rate
     :param epoch:number of epochs of the training
     :return: list of training and validation losses
@@ -180,6 +182,7 @@ def training_loop(model, train_loader, validation_loader, rec_fun, cropper, lr=1
         for x_batch, y_batch, flow_batch in tqdm(train_loader):
             hidden_states = None
             I_predict_previous = None
+            x_batch = preproc(x_batch)
             x_batch = pad_events(x_batch, cropper)
             # Iterate over the timesteps (??)
             for t in range(x_batch.shape[1]):
@@ -191,12 +194,14 @@ def training_loop(model, train_loader, validation_loader, rec_fun, cropper, lr=1
                 if t < 1:
                     I_predict, hidden_states = model(x_batch[:, t], None)
                     I_predict = I_predict[:, :, cropper.iy0:cropper.iy1, cropper.ix0:cropper.ix1]
+                    I_predict = postproc(I_predict)
                     # print(x_batch[t].shape, I_predict.shape, y_batch[t].shape)
                     loss = loss_fn(I_predict, None, y_batch[:, t + 1], None, rec_fun,
                                    flow=None, first_iteration=True).sum()
                 else:
                     I_predict, hidden_states = model(x_batch[:, t], hidden_states)
                     I_predict = I_predict[:, :, cropper.iy0:cropper.iy1, cropper.ix0:cropper.ix1]
+                    I_predict = postproc(I_predict)
                     loss += loss_fn(I_predict, I_predict_previous, y_batch[:, t + 1], y_batch[:, t], rec_fun,
                                     flow=flow_batch[:, t]).sum()
                 """
@@ -236,11 +241,13 @@ def training_loop(model, train_loader, validation_loader, rec_fun, cropper, lr=1
                     if t < 1:
                         I_predict, hidden_states = model(x_batch_val[:, t], None)
                         I_predict = I_predict[:, :, cropper.iy0:cropper.iy1, cropper.ix0:cropper.ix1]
+                        I_predict = postproc(I_predict)
                         loss = loss_fn(I_predict, None, y_batch_val[:, t + 1], None, rec_fun,
                                        flow=None, first_iteration=True).sum()
                     else:
                         I_predict, hidden_states = model(x_batch_val[:, t], hidden_states)
                         I_predict = I_predict[:, :, cropper.iy0:cropper.iy1, cropper.ix0:cropper.ix1]
+                        I_predict = postproc(I_predict)
                         loss = loss_fn(I_predict, I_predict_previous, y_batch_val[:, t + 1], y_batch_val[:, t], rec_fun,
                                        flow=flow_batch_val[:, t]).sum()
                     # update variables
