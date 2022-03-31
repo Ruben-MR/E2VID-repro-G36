@@ -1,7 +1,5 @@
 # This is the README of the blog for the reproducibility project
 
-hi2
-
 ## Useful links
 
 Project's webpage from ETH [link](https://rpg.ifi.uzh.ch/E2VID.html)
