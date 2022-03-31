@@ -235,6 +235,7 @@ def training_loop(model, train_loader, validation_loader, rec_fun, cropper, prep
             for x_batch_val, y_batch_val, flow_batch_val in tqdm(validation_loader):
                 hidden_states = None
                 I_predict_previous = None
+                x_batch_val = preproc(x_batch_val)
                 x_batch_val = pad_events(x_batch_val, cropper)
                 batch_loss = 0
                 for t in range(x_batch_val.shape[1]):
