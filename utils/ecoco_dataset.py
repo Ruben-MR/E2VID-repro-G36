@@ -34,7 +34,7 @@ class ECOCO_Train_Dataset(torch.utils.data.Dataset):
         (differences in the indices per type of tensor are due to the way the database indexing is done)
         """
         assert n_shifts > 0
-        assert start_index + (n_shifts - 1) * shift + sequence_length <= 55
+        assert start_index + (n_shifts - 1) * shift + sequence_length < 50
 
         self.sequence_length = sequence_length
         self.start_idx = start_index
@@ -122,8 +122,8 @@ class ECOCO_Validation_Dataset(torch.utils.data.Dataset):
         :param start_index: the first index from which to retrieve the sequence.
         :param path: the path of the directory within which the dataset directory can be found.
         """
-        assert n_shifts > 1
-        assert start_index + (n_shifts - 1) * shift + sequence_length <= 55
+        assert n_shifts > 0
+        assert start_index + (n_shifts - 1) * shift + sequence_length < 50
 
         self.sequence_length = sequence_length
         self.start_idx = start_index
@@ -216,13 +216,13 @@ if __name__ == '__main__':
 
     print("CHECKING TRAIN LOADER")
 
-    for events, frames, flows in train_loader:
+    for events, frames, flows in tqdm(train_loader):
         assert events.shape == torch.Size([2, seq_length, 5, 180, 240]) and frames.shape == torch.Size([2, seq_length+1, 1, 180, 240]) \
                and flows.shape == torch.Size([2, seq_length, 2, 180, 240])
 
     print("CHECKING VALIDATION LOADER")
 
-    for events, frames, flows in val_loader:
+    for events, frames, flows in tqdm(val_loader):
         assert events.shape == torch.Size([2, seq_length, 5, 180, 240]) and frames.shape == torch.Size(
             [2, seq_length + 1, 1, 180, 240]) \
                and flows.shape == torch.Size([2, seq_length, 2, 180, 240])

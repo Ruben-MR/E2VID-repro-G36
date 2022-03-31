@@ -27,12 +27,14 @@ if __name__ == "__main__":
     batch_size = 2
     seq_length = 8
     shift = 8
-    n_shifts = 5
+    n_seq_usages = 1
     start_idx = 0
     data_path = DATA_DIR
 
-    train_dataset = ECOCO_Train_Dataset(sequence_length=seq_length, start_index=start_idx, shift=shift, n_shifts=n_shifts, path=data_path)
-    val_dataset = ECOCO_Validation_Dataset(sequence_length=seq_length, start_index=start_idx, shift=shift, n_shifts=n_shifts, path=data_path)
+    train_dataset = ECOCO_Train_Dataset(sequence_length=seq_length, start_index=start_idx, shift=shift,
+                                        n_shifts=n_seq_usages, path=data_path)
+    val_dataset = ECOCO_Validation_Dataset(sequence_length=seq_length, start_index=start_idx, shift=shift,
+                                           n_shifts=n_seq_usages, path=data_path)
 
     events, images, flows = train_dataset.__getitem__(0)
     height = events.shape[-2]
