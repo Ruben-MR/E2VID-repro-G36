@@ -1,10 +1,12 @@
+import os.path
 import numpy as np
 import torch
 import matplotlib.pyplot as plt
 import torch.nn.functional as F
 from utils.inference_utils import CropParameters
 from tqdm import tqdm
-
+from config import SAVED_DIR
+from datetime import datetime
 
 class PreProcessOptions:
     """
@@ -156,7 +158,7 @@ def loss_fn(I_pred, I_pred_pre, I_true, I_true_pre, reconstruction_loss_fn, flow
 
 
 # Training function
-def training_loop(model, train_loader, validation_loader, rec_fun, cropper, preproc, postproc, lr=1e-4, epoch=5):
+def training_loop(model, train_loader, validation_loader, rec_fun, cropper, preproc, postproc, lr=1e-4, epoch=5, save=True):
     """
     Function for implementing the training loop of the network
     :param model: network to be trained
@@ -256,5 +258,13 @@ def training_loop(model, train_loader, validation_loader, rec_fun, cropper, prep
                     batch_loss += loss.item()
                 epoch_losses.append(batch_loss)  # loss for single epoch
             val_losses.append(np.sum(epoch_losses))
+
+    if save:
+        name = datetime.now().strftime("saved_%d-%m-%Y_%H:%M")
+        fullpath = os.path.join(SAVED_DIR, name)
+        torch.save(model.state_dict(), fullpath)
+        print(f"SAVED MODEL AS:\n"
+              f"{name}\n"
+              f"in: {SAVED_DIR}")
 
     return train_losses, val_losses
