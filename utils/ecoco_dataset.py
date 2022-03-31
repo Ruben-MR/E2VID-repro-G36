@@ -19,6 +19,11 @@ class ECOCO_Train_Dataset(torch.utils.data.Dataset):
         (sequence_length + 1) images, and the corresponding transition tensors (both flow, and event) in between those
         images (so, an amount equal to sequence_length, each).
         :param start_index: the first index from which to retrieve the sequence.
+        :param shift: the amount of time indices to 'shift' by. This means that sequences within the dataset are
+        essentially reused multiple times, and each time a sequence is reused, a different time window is being
+        extracted. Irrelevant in the case that n_shifts = 1
+        :param n_shifts: the total number of shifts considered. With the default value of 1, no multiple shifts will be
+        performed, each sequence within the dataset is used only one time.
         :param path: the path of the directory within which the dataset directory can be found.
 
         As an example, with start_index=8 and sequence_length=3,
@@ -28,6 +33,7 @@ class ECOCO_Train_Dataset(torch.utils.data.Dataset):
             - flow: [9, 10, 11]
         (differences in the indices per type of tensor are due to the way the database indexing is done)
         """
+        assert n_shifts > 0
         assert start_index + (n_shifts - 1) * shift + sequence_length <= 55
 
         self.sequence_length = sequence_length
@@ -108,9 +114,15 @@ class ECOCO_Validation_Dataset(torch.utils.data.Dataset):
         images in the video sequence. This essentially means that the produced sequences will contain
         (sequence_length + 1) images, and the corresponding transition tensors (both flow, and event) in between those
         images (so, an amount equal to sequence_length, each).
+        :param shift: the amount of time indices to 'shift' by. This means that sequences within the dataset are
+        essentially reused multiple times, and each time a sequence is reused, a different time window is being
+        extracted. Irrelevant in the case that n_shifts = 1
+        :param n_shifts: the total number of shifts considered. With the default value of 1, no multiple shifts will be
+        performed, each sequence within the dataset is used only one time.
         :param start_index: the first index from which to retrieve the sequence.
         :param path: the path of the directory within which the dataset directory can be found.
         """
+        assert n_shifts > 1
         assert start_index + (n_shifts - 1) * shift + sequence_length <= 55
 
         self.sequence_length = sequence_length
