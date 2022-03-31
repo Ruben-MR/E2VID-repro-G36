@@ -3,6 +3,7 @@ import torch
 import matplotlib.pyplot as plt
 import torch.nn.functional as F
 from utils.inference_utils import CropParameters
+from tqdm import tqdm
 
 
 class PreProcessOptions:
@@ -173,9 +174,10 @@ def training_loop(model, train_loader, validation_loader, rec_fun, cropper, lr=1
     val_losses = []  # mean loss over each epoch
     # Start iterating for the specific number of epochs
     for e in range(epoch):
+        print("\ntranining progress: epoch {}".format(e + 1))
         epoch_losses = []  # loss of each batch
         # Load the current data batch
-        for x_batch, y_batch, flow_batch in train_loader:
+        for x_batch, y_batch, flow_batch in tqdm(train_loader):
             hidden_states = None
             I_predict_previous = None
             x_batch = pad_events(x_batch, cropper)
@@ -223,8 +225,9 @@ def training_loop(model, train_loader, validation_loader, rec_fun, cropper, lr=1
         # After every epoch, perform validation
         with torch.no_grad():
             epoch_losses = []  # loss of each batch
+            print("\nvalidation progress:")
             # Load the data
-            for x_batch_val, y_batch_val, flow_batch_val in validation_loader:
+            for x_batch_val, y_batch_val, flow_batch_val in tqdm(validation_loader):
                 hidden_states = None
                 I_predict_previous = None
                 x_batch_val = pad_events(x_batch_val, cropper)

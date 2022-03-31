@@ -37,7 +37,7 @@ if __name__ == "__main__":
     width = events.shape[-1]
     crop = CropParameters(width, height, model.num_encoders)
 
-    train_loader = torch.utils.data.DataLoader(train_dataset, batch_size=batch_size, shuffle=True)
+    train_loader = torch.utils.data.DataLoader(val_dataset, batch_size=batch_size, shuffle=True)
     val_loader = torch.utils.data.DataLoader(val_dataset, batch_size=batch_size, shuffle=True)
 
     if torch.cuda.is_available():
