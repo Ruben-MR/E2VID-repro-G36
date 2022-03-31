@@ -7,11 +7,9 @@ import os
 
 ROOT_DIR = os.path.dirname(os.path.abspath(__file__))      # the root directory of the project
 DATA_DIR = os.path.join(ROOT_DIR, "data")
-MODEL_DIR = os.path.join(ROOT_DIR, "model")
+SAVED_DIR = os.path.join(ROOT_DIR, "saved_models")
 
 if __name__ == '__main__':
     print(f"{ROOT_DIR=}")
     print(f"{DATA_DIR=}")
-    print(f"{MODEL_DIR=}")
-
-
+    print(f"{SAVED_DIR=}")
