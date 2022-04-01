@@ -1,3 +1,5 @@
+import torch
+
 from utils.ecoco_sequence_loader import *
 from model.model import E2VIDRecurrent
 from utils.train_utils import PreProcessOptions, RescalerOptions
@@ -23,7 +25,8 @@ if __name__ == "__main__":
     # ignore the code above, they are just used for taking out the event tensor and model
     device = get_device(True)
     # DATA_DIR = '/home/richard/Q3/Deep_Learning/ruben-mr.github.io/data'
-    num_epochs = 2
+    torch.manual_seed(42)
+    num_epochs = 30
     batch_size = 2
     seq_length = 8
     shift = 8
