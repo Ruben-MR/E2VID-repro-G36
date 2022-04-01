@@ -172,6 +172,7 @@ def training_loop(model, train_loader, validation_loader, rec_fun, cropper, prep
     :param epoch:number of epochs of the training
     :return: list of training and validation losses
     """
+    time_before_train = datetime.now()
     optimizer = torch.optim.Adam(model.parameters(), lr=lr)
 
     train_losses = []   # mean loss over each epoch
@@ -258,6 +259,9 @@ def training_loop(model, train_loader, validation_loader, rec_fun, cropper, prep
                     batch_loss += loss.item()
                 epoch_losses.append(batch_loss)  # loss for single epoch
             val_losses.append(np.sum(epoch_losses))
+    time_after_train = datetime.now()
+    training_time = (time_after_train - time_before_train).seconds / 60 # in minutes
+    print('total_training_time:{} minutes'.format(training_time))
 
     if save:
         name = datetime.now().strftime("saved_%d-%m-%Y_%H-%M")
