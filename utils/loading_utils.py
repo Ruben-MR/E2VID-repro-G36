@@ -23,6 +23,7 @@ from model.model import *
 #     return model
 #===========================================================================
 
+
 def load_model(path_to_model, map_location):
     print('Loading model {}...'.format(path_to_model))
     raw_model = torch.load(path_to_model, map_location=map_location)
@@ -34,6 +35,7 @@ def load_model(path_to_model, map_location):
     model.load_state_dict(raw_model)
 
     return model
+
 
 def get_device(use_gpu):
     if use_gpu and torch.cuda.is_available():
