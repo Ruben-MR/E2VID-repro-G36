@@ -30,7 +30,7 @@ if __name__ == "__main__":
     batch_size = 2
     seq_length = 8
     shift = 8
-    n_seq_usages = 1
+    n_seq_usages = 2
     start_idx = 0
     data_path = DATA_DIR
 
