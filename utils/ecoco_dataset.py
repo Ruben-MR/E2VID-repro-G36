@@ -34,7 +34,7 @@ class ECOCO_Train_Dataset(torch.utils.data.Dataset):
         (differences in the indices per type of tensor are due to the way the database indexing is done)
         """
         assert n_shifts > 0
-        assert start_index + (n_shifts - 1) * shift + sequence_length < 50
+        assert start_index + (n_shifts - 1) * shift + sequence_length < 36, "The setup goes beyond the shortest sequence"
 
         self.sequence_length = sequence_length
         self.start_idx = start_index

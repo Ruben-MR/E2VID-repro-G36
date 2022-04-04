@@ -26,11 +26,11 @@ if __name__ == "__main__":
     device = get_device(True)
     # DATA_DIR = '/home/richard/Q3/Deep_Learning/ruben-mr.github.io/data'
     torch.manual_seed(42)
-    num_epochs = 30
+    num_epochs = 1
     batch_size = 2
     seq_length = 8
     shift = 8
-    n_seq_usages = 2
+    n_seq_usages = 4
     start_idx = 0
     data_path = DATA_DIR
 
