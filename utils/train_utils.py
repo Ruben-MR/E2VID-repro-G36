@@ -5,7 +5,7 @@ import matplotlib.pyplot as plt
 import torch.nn.functional as F
 from utils.inference_utils import CropParameters
 from tqdm import tqdm
-from config import SAVED_DIR
+from config import SAVED_DIR, LOG_DIR
 from datetime import datetime
 
 class PreProcessOptions:
@@ -270,5 +270,10 @@ def training_loop(model, train_loader, validation_loader, rec_fun, cropper, prep
         print(f"SAVED MODEL AS:\n"
               f"{name}\n"
               f"in: {SAVED_DIR}")
+
+    data = np.array([train_losses, val_losses]).T
+    filename = datetime.now().strftime("saved_%d-%m-%Y_%H-%M.csv")
+    fullpath = os.path.join(LOG_DIR, filename)
+    np.savetxt(fullpath, data, delimiter=',')
 
     return train_losses, val_losses
