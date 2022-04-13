@@ -1,8 +1,12 @@
+import os.path
 import numpy as np
 import torch
 import matplotlib.pyplot as plt
 import torch.nn.functional as F
 from utils.inference_utils import CropParameters
+from tqdm import tqdm
+from config import SAVED_DIR, LOG_DIR
+from datetime import datetime
 
 
 class PreProcessOptions:
@@ -13,6 +17,15 @@ class PreProcessOptions:
         self.no_normalize = False
         self.hot_pixels_file = None
         self.flip = False
+
+
+class UMSOptions:
+    """
+    Event preprocessing options class
+    """
+    def __init__(self):
+        self.unsharp_mask_amount = 0.3
+        self.unsharp_mask_sigma = 0.1
 
 
 class RescalerOptions:
@@ -52,6 +65,20 @@ def plot_training_data(tr_losses, v_losses):
     plt.show()
 
 
+def pad_events(events, crop):
+    origin_shape_events = events.shape
+    events = events.unsqueeze(dim=2)
+    events_after_padding = []
+    for t in range(events.shape[0]):
+        for item in range(events.shape[1]):
+            event = events[t, item]
+            event = crop.pad(event)
+            events_after_padding.append(event)
+    events = torch.stack(events_after_padding, dim=0)
+    events = events.view(origin_shape_events[0], origin_shape_events[1], events.shape[1], events.shape[2], events.shape[3], events.shape[4]).squeeze(dim=2)
+    return events
+
+ 
 def pad_all(events, images, flows):
     width = events.shape[-1]
     height = events.shape[-2]
@@ -126,7 +153,9 @@ def flow_map(im, flo):
     # Permute to get the correct dimensions for the sampling function
     vgrid = vgrid.permute(0, 2, 3, 1)
     # Sample points from the previuos image according to the indexing grid
-    output = F.grid_sample(im.double(), vgrid.double())
+
+    output = F.grid_sample(im, vgrid)
+
     """
     mask = torch.autograd.Variable(torch.ones(im.size())).cuda()
     mask = F.grid_sample(mask.double(), vgrid)
@@ -146,9 +175,9 @@ def loss_fn(I_pred, I_pred_pre, I_true, I_true_pre, reconstruction_loss_fn, flow
     :param I_pred_pre: predicted image at the previous timestep
     :param I_true: ground-truth image of the latest prediction
     :param I_true_pre: ground-truth image of the previous timestep
+    :param flow: flow tensor between the previous and the current timestep of the sequence
     :param first_iteration: boolean for skipping the temporal consistency loss if the loss is being computed for the
     first timestep of the sequence
-    :param flow: flow tensor between the previous and the current timestep of the sequence
     :return: value of the loss function
     """
     # reconstruction loss
@@ -179,31 +208,36 @@ def loss_fn(I_pred, I_pred_pre, I_true, I_true_pre, reconstruction_loss_fn, flow
 
 
 # Training function
-def training_loop(model, loss_fn, train_loader, validation_loader, rec_fun, lr=1e-4, epoch=5):
+def training_loop(model, train_loader, validation_loader, rec_fun, cropper, preproc, postproc, filt=None, lr=1e-4, epoch=5, save=True):
     """
     Function for implementing the training loop of the network
     :param model: network to be trained
-    :param loss_fn: loss function to be used for backpropagation
     :param train_loader: data loader
     :param validation_loader: validation data loader
+    :param rec_fun: reconstruction loss function
+    :param cropper: class for cropping the event data before feeding the network
+    :param preproc: class for performing event tensor preprocessing (normalization for now)
+    :param postproc: class for performing event tensor postprocessing (intensity rescaling)
     :param lr:learning rate
     :param epoch:number of epochs of the training
     :return: list of training and validation losses
     """
+    print(lr)
+    time_before_train = datetime.now()
     optimizer = torch.optim.Adam(model.parameters(), lr=lr)
 
     train_losses = []   # mean loss over each epoch
     val_losses = []  # mean loss over each epoch
     # Start iterating for the specific number of epochs
     for e in range(epoch):
-        #print("training progress: epoch {}/{}".format(e, epoch))
+        print("\ntranining progress: epoch {}".format(e + 1))
         epoch_losses = []  # loss of each batch
         # Load the current data batch
-        for i, (x_batch, y_batch, flow_batch) in enumerate(train_loader):
-            print("tranining progress: epoch {}: batch {}/{}".format(e+1, i+1, len(train_loader.dataset)/x_batch.shape[0]))
-            x_batch, y_batch, flow_batch = pad_all(x_batch, y_batch, flow_batch)
+        for x_batch, y_batch, flow_batch in tqdm(train_loader):
             hidden_states = None
             I_predict_previous = None
+            x_batch = preproc(x_batch)
+            x_batch = pad_events(x_batch, cropper)
             # Iterate over the timesteps (??)
             for t in range(x_batch.shape[1]):
                 # TODO: discuss these changes
@@ -213,26 +247,21 @@ def training_loop(model, loss_fn, train_loader, validation_loader, rec_fun, lr=1
                 # afford to do this
                 if t < 1:
                     I_predict, hidden_states = model(x_batch[:, t], None)
+                    I_predict = I_predict[:, :, cropper.iy0:cropper.iy1, cropper.ix0:cropper.ix1]
+                    if filt is not None:
+                        I_predict = filt(I_predict)
+                    I_predict = postproc(I_predict)
                     # print(x_batch[t].shape, I_predict.shape, y_batch[t].shape)
                     loss = loss_fn(I_predict, None, y_batch[:, t + 1], None, rec_fun,
                                    flow=None, first_iteration=True).sum()
                 else:
                     I_predict, hidden_states = model(x_batch[:, t], hidden_states)
+                    I_predict = I_predict[:, :, cropper.iy0:cropper.iy1, cropper.ix0:cropper.ix1]
+                    if filt is not None:
+                        I_predict = filt(I_predict)
+                    I_predict = postproc(I_predict)
                     loss += loss_fn(I_predict, I_predict_previous, y_batch[:, t + 1], y_batch[:, t], rec_fun,
                                     flow=flow_batch[:, t]).sum()
-                """
-                # Option 2: perform temporal consistency loss on first iterations using the first ground truth image
-                # as previous image
-                if t < 1:
-                    I_predict, hidden_states = model(x_batch[:, t], None)
-                    # print(x_batch[t].shape, I_predict.shape, y_batch[t].shape)
-                    loss = loss_fn(I_predict, y_batch[:, t], y_batch[:, t + 1], y_batch[:, t], rec_fun,
-                                   flow=flow_batch[:, t]).sum()
-                else:
-                    I_predict, hidden_states = model(x_batch[:, t], hidden_states)
-                    loss += loss_fn(I_predict, I_predict_previous, y_batch[:, t + 1], y_batch[:, t], rec_fun,
-                                    flow=flow_batch[:, t]).sum()
-                """
                 # update variables
                 I_predict_previous = I_predict
             # model update
@@ -246,20 +275,30 @@ def training_loop(model, loss_fn, train_loader, validation_loader, rec_fun, lr=1
         # After every epoch, perform validation
         with torch.no_grad():
             epoch_losses = []  # loss of each batch
+            print("\nvalidation progress:")
             # Load the data
-            for i, (x_batch_val, y_batch_val, flow_batch_val) in enumerate(validation_loader):
-                print("validation progress: epoch {}: batch {}/{}".format(e + 1, i+1, len(validation_loader.dataset) / x_batch_val.shape[0]))
-                x_batch_val, y_batch_val, flow_batch_val = pad_all(x_batch_val, y_batch_val, flow_batch_val)
+
+            for x_batch_val, y_batch_val, flow_batch_val in tqdm(validation_loader):
                 hidden_states = None
                 I_predict_previous = None
+                x_batch_val = preproc(x_batch_val)
+                x_batch_val = pad_events(x_batch_val, cropper)
                 batch_loss = 0
                 for t in range(x_batch_val.shape[1]):
                     if t < 1:
                         I_predict, hidden_states = model(x_batch_val[:, t], None)
+                        I_predict = I_predict[:, :, cropper.iy0:cropper.iy1, cropper.ix0:cropper.ix1]
+                        if filt is not None:
+                            I_predict = filt(I_predict)
+                        I_predict = postproc(I_predict)
                         loss = loss_fn(I_predict, None, y_batch_val[:, t + 1], None, rec_fun,
                                        flow=None, first_iteration=True).sum()
                     else:
                         I_predict, hidden_states = model(x_batch_val[:, t], hidden_states)
+                        I_predict = I_predict[:, :, cropper.iy0:cropper.iy1, cropper.ix0:cropper.ix1]
+                        if filt is not None:
+                            I_predict = filt(I_predict)
+                        I_predict = postproc(I_predict)
                         loss = loss_fn(I_predict, I_predict_previous, y_batch_val[:, t + 1], y_batch_val[:, t], rec_fun,
                                        flow=flow_batch_val[:, t]).sum()
                     # update variables
@@ -267,5 +306,21 @@ def training_loop(model, loss_fn, train_loader, validation_loader, rec_fun, lr=1
                     batch_loss += loss.item()
                 epoch_losses.append(batch_loss)  # loss for single epoch
             val_losses.append(np.sum(epoch_losses))
+    time_after_train = datetime.now()
+    training_time = (time_after_train - time_before_train).seconds / 60 # in minutes
+    print('total_training_time:{} minutes'.format(training_time))
+
+    if save:
+        name = datetime.now().strftime("saved_%d-%m-%Y_%H-%M")
+        fullpath = os.path.join(SAVED_DIR, name)
+        torch.save(model.state_dict(), fullpath)
+        print(f"SAVED MODEL AS:\n"
+              f"{name}\n"
+              f"in: {SAVED_DIR}")
+
+    data = np.array([train_losses, val_losses]).T
+    filename = datetime.now().strftime("saved_%d-%m-%Y_%H-%M.csv")
+    fullpath = os.path.join(LOG_DIR, filename)
+    np.savetxt(fullpath, data, delimiter=',')
 
     return train_losses, val_losses

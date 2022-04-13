@@ -92,7 +92,7 @@ class ImageReconstructor:
                     new_predicted_frame = self.unsharp_mask_filter(new_predicted_frame)
 
                     # Intensity rescaler (on GPU)
-                    new_predicted_frame = self.intensity_rescaler(new_predicted_frame)
+                    new_predicted_frame = (self.intensity_rescaler(new_predicted_frame)*255).byte()
 
                     with CudaTimer('Tensor (GPU) -> NumPy (CPU)'):
                         reconstructions_for_each_channel[channel] = new_predicted_frame[0, 0, crop.iy0:crop.iy1,

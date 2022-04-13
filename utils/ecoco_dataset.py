@@ -3,11 +3,14 @@ import torch.utils.data
 import numpy as np
 from config import DATA_DIR
 from torchvision.io import read_image
+from tqdm import tqdm
 
 
 class ECOCO_Train_Dataset(torch.utils.data.Dataset):
 
-    def __init__(self, start_index=0, sequence_length=8, path=DATA_DIR):
+    N_SEQUENCES = 950
+
+    def __init__(self, start_index=0, sequence_length=8, shift=2, n_shifts=1, path=DATA_DIR):
         """
         Dataset class for instantiating individual elements of the event dataset.
 
@@ -16,6 +19,11 @@ class ECOCO_Train_Dataset(torch.utils.data.Dataset):
         (sequence_length + 1) images, and the corresponding transition tensors (both flow, and event) in between those
         images (so, an amount equal to sequence_length, each).
         :param start_index: the first index from which to retrieve the sequence.
+        :param shift: the amount of time indices to 'shift' by. This means that sequences within the dataset are
+        essentially reused multiple times, and each time a sequence is reused, a different time window is being
+        extracted. Irrelevant in the case that n_shifts = 1
+        :param n_shifts: the total number of shifts considered. With the default value of 1, no multiple shifts will be
+        performed, each sequence within the dataset is used only one time.
         :param path: the path of the directory within which the dataset directory can be found.
 
         As an example, with start_index=8 and sequence_length=3,
@@ -25,10 +33,13 @@ class ECOCO_Train_Dataset(torch.utils.data.Dataset):
             - flow: [9, 10, 11]
         (differences in the indices per type of tensor are due to the way the database indexing is done)
         """
-        assert start_index + sequence_length <= 50
+        assert n_shifts > 0
+        assert start_index + (n_shifts - 1) * shift + sequence_length < 36, "The setup goes beyond the shortest sequence"
 
         self.sequence_length = sequence_length
         self.start_idx = start_index
+        self.shift = shift
+        self.n_shifts = n_shifts
         self.root_path = path
 
     def __getitem__(self, idx):
@@ -40,10 +51,13 @@ class ECOCO_Train_Dataset(torch.utils.data.Dataset):
             - frames, a torch.Tensor of shape [(self.sequence_length + 1), 1, 180, 240]
             - flows, a torch.Tensor of shape [self.sequence_length, 2, 180, 240]
         """
-        assert idx < 950
+        assert idx < self.__len__()
 
-        while idx in [107, 382]:
-            idx = int(np.random.randint(0, 950, (1,)))
+        while idx % self.N_SEQUENCES in [107, 382]:
+            idx = int(np.random.randint(0, self.__len__(), (1,)))
+
+        shft_idx, idx = (idx // self.N_SEQUENCES, idx % self.N_SEQUENCES)
+        # print(f"{(shft_idx, idx)=}")
 
         sequence_path = os.path.join(self.root_path,
                                      "ecoco_depthmaps_test",
@@ -62,8 +76,9 @@ class ECOCO_Train_Dataset(torch.utils.data.Dataset):
         flows = torch.zeros(size=[self.sequence_length, 2, 180, 240])
         events = torch.zeros(size=[self.sequence_length, 5, 180, 240])
 
-        for i, sequence_index in enumerate(range(self.start_idx, self.start_idx + self.sequence_length)):
-            # print(f"{i, sequence_index=}")
+        for i, sequence_index in enumerate(range(self.start_idx + shft_idx * self.shift,
+                                                 self.start_idx + shft_idx * self.shift + self.sequence_length)):
+            # print(f"{(i, sequence_index)=}")
             flow = np.load(os.path.join(flow_path, "disp01_{:>010d}.npy".format(sequence_index+1)))
             event = np.load(os.path.join(event_path, "event_tensor_{:>010d}.npy".format(sequence_index)))
             frame = read_image(os.path.join(frame_path, "frame_{:>010d}.png".format(sequence_index)))
@@ -84,12 +99,14 @@ class ECOCO_Train_Dataset(torch.utils.data.Dataset):
         return events.cuda(), frames.cuda(), flows.cuda()
 
     def __len__(self):
-        return 950
+        return self.N_SEQUENCES * self.n_shifts
 
 
 class ECOCO_Validation_Dataset(torch.utils.data.Dataset):
 
-    def __init__(self, start_index=0, sequence_length=8, path=DATA_DIR):
+    N_SEQUENCES = 50
+
+    def __init__(self, start_index=0, sequence_length=8, shift=2, n_shifts=1, path=DATA_DIR):
         """
         Dataset class for instantiating individual elements of the event dataset.
 
@@ -97,13 +114,21 @@ class ECOCO_Validation_Dataset(torch.utils.data.Dataset):
         images in the video sequence. This essentially means that the produced sequences will contain
         (sequence_length + 1) images, and the corresponding transition tensors (both flow, and event) in between those
         images (so, an amount equal to sequence_length, each).
+        :param shift: the amount of time indices to 'shift' by. This means that sequences within the dataset are
+        essentially reused multiple times, and each time a sequence is reused, a different time window is being
+        extracted. Irrelevant in the case that n_shifts = 1
+        :param n_shifts: the total number of shifts considered. With the default value of 1, no multiple shifts will be
+        performed, each sequence within the dataset is used only one time.
         :param start_index: the first index from which to retrieve the sequence.
         :param path: the path of the directory within which the dataset directory can be found.
         """
-        assert start_index + sequence_length <= 50
+        assert n_shifts > 0
+        assert start_index + (n_shifts - 1) * shift + sequence_length < 50
 
         self.sequence_length = sequence_length
         self.start_idx = start_index
+        self.shift = shift
+        self.n_shifts = n_shifts
         self.root_path = path
 
     def __getitem__(self, idx):
@@ -115,8 +140,12 @@ class ECOCO_Validation_Dataset(torch.utils.data.Dataset):
             - frames, a torch.Tensor of shape [(self.sequence_length + 1), 180, 240]
             - flows, a torch.Tensor of shape [self.sequence_length, 2, 180, 240]
         """
-        assert idx < 50
+
+        assert idx < self.__len__()
+        shft_idx, idx = (idx // self.N_SEQUENCES, idx % self.N_SEQUENCES)
         idx += 950
+        # print(f"{(shft_idx, idx)=}")
+
         sequence_path = os.path.join(self.root_path,
                                      "ecoco_depthmaps_test",
                                      "validation",
@@ -134,8 +163,9 @@ class ECOCO_Validation_Dataset(torch.utils.data.Dataset):
         flows = torch.zeros(size=[self.sequence_length, 2, 180, 240])
         events = torch.zeros(size=[self.sequence_length, 5, 180, 240])
 
-        for i, sequence_index in enumerate(range(self.start_idx, self.start_idx + self.sequence_length)):
-            # print(f"{i, sequence_index=}")
+        for i, sequence_index in enumerate(range(self.start_idx + shft_idx * self.shift,
+                                                 self.start_idx + shft_idx * self.shift + self.sequence_length)):
+            # print(f"{(i, sequence_index)=}")
             flow = np.load(os.path.join(flow_path, "disp01_{:>010d}.npy".format(sequence_index+1)))
             event = np.load(os.path.join(event_path, "event_tensor_{:>010d}.npy".format(sequence_index)))
             frame = read_image(os.path.join(frame_path, "frame_{:>010d}.png".format(sequence_index)))
@@ -156,40 +186,48 @@ class ECOCO_Validation_Dataset(torch.utils.data.Dataset):
         return events.cuda(), frames.cuda(), flows.cuda()
 
     def __len__(self):
-        return 50
+        return self.N_SEQUENCES * self.n_shifts
 
 
 if __name__ == '__main__':
 
-    seq_length = 3
-    start_idx = 8
+    seq_length = 8
+    shift = 4
+    n_shifts = 2
+    start_idx = 20
     data_path = DATA_DIR
-    sequence_index = 42
+    sequence_index = 2000
 
-    train_dataset = ECOCO_Train_Dataset(sequence_length=seq_length, start_index=start_idx, path=data_path)
-    val_dataset = ECOCO_Validation_Dataset(sequence_length=seq_length, start_index=start_idx, path=data_path)
+    train_dataset = ECOCO_Train_Dataset(start_index=start_idx, sequence_length=seq_length, shift=shift, n_shifts=n_shifts, path=data_path)
+    val_dataset = ECOCO_Validation_Dataset(start_index=start_idx, sequence_length=seq_length, shift=shift, n_shifts=n_shifts, path=data_path)
 
     #print(f"{dataset.sequence_length=}")
     #print(f"{dataset.start_idx=}")
     #print(f"{dataset.root_path=}")
 
-    event_tensor, frame_tensor, flow_tensor = train_dataset.__getitem__(sequence_index)
+    # event_tensor, frame_tensor, flow_tensor = train_dataset.__getitem__(sequence_index)
+    #
+    # print(f"{type(event_tensor), event_tensor.shape=}")
+    # print(f"{type(frame_tensor), frame_tensor.shape=}")
+    # print(f"{type(flow_tensor), flow_tensor.shape=}")
 
-    print(f"{type(event_tensor), event_tensor.shape=}")
-    print(f"{type(frame_tensor), frame_tensor.shape=}")
-    print(f"{type(flow_tensor), flow_tensor.shape=}")
+    train_loader = torch.utils.data.DataLoader(train_dataset, batch_size=2, shuffle=False)
+    val_loader = torch.utils.data.DataLoader(val_dataset, batch_size=2, shuffle=False)
 
-    train_loader = torch.utils.data.DataLoader(train_dataset, batch_size=2, shuffle=True)
-    val_loader = torch.utils.data.DataLoader(val_dataset, batch_size=2, shuffle=True)
-    i = 0
-    for events, frames, flows in train_loader:
-        assert events.shape == torch.Size([2, 3, 5, 180, 240]) and frames.shape == torch.Size([2, 4, 1, 180, 240]) \
-               and flows.shape == torch.Size([2, 3, 2, 180, 240])
-        #print(events.is_cuda)
-        #print(frames.is_cuda)
-        #print(flows.is_cuda)
-        i += 1
-    print(i)
+    print("CHECKING TRAIN LOADER")
+
+    for events, frames, flows in tqdm(train_loader):
+        assert events.shape == torch.Size([2, seq_length, 5, 180, 240]) and frames.shape == torch.Size([2, seq_length+1, 1, 180, 240]) \
+               and flows.shape == torch.Size([2, seq_length, 2, 180, 240])
+
+    print("CHECKING VALIDATION LOADER")
+
+    for events, frames, flows in tqdm(val_loader):
+        assert events.shape == torch.Size([2, seq_length, 5, 180, 240]) and frames.shape == torch.Size(
+            [2, seq_length + 1, 1, 180, 240]) \
+               and flows.shape == torch.Size([2, seq_length, 2, 180, 240])
+
+        # print(f"{(events.is_cuda, frames.is_cuda, flows.is_cuda)=}")
     # print("\n\nFrames")
     # for i, image in enumerate(frame_tensor):
     #     plt.imshow(image)

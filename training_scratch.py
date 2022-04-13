@@ -1,8 +1,9 @@
+import torch
+
 from utils.ecoco_sequence_loader import *
 from model.model import E2VIDRecurrent
-from utils.train_utils import PreProcessOptions, RescalerOptions
-from utils.inference_utils import EventPreprocessor, IntensityRescaler
-from utils.train_utils import plot_training_data, pad_all, loss_fn, training_loop
+from utils.train_utils import PreProcessOptions, RescalerOptions, UMSOptions, plot_training_data, training_loop
+from utils.inference_utils import EventPreprocessor, IntensityRescaler, CropParameters, UnsharpMaskFilter
 from utils.loading_utils import get_device
 from utils.ecoco_dataset import ECOCO_Train_Dataset, ECOCO_Validation_Dataset
 import lpips
@@ -19,18 +20,32 @@ if __name__ == "__main__":
     preprocessor = EventPreprocessor(options)
     options = RescalerOptions()
     rescaler = IntensityRescaler(options)
+    options = UMSOptions()
+    filt = UnsharpMaskFilter(options, 'cuda:0')
 
     # ignore the code above, they are just used for taking out the event tensor and model
     device = get_device(True)
-    #DATA_DIR = '/home/richard/Q3/Deep_Learning/ruben-mr.github.io/data'
-    num_epochs = 2
+    # DATA_DIR = '/home/richard/Q3/Deep_Learning/ruben-mr.github.io/data'
+    torch.manual_seed(42)
     batch_size = 2
-    seq_length = 3
+    shift = 8
     start_idx = 0
+
+    # These ones are the ones to be changed
+    num_epochs = 60
+    seq_length = 8
+    n_seq_usages = 1
     data_path = DATA_DIR
 
-    train_dataset = ECOCO_Train_Dataset(sequence_length=seq_length, start_index=start_idx, path=data_path)
-    val_dataset = ECOCO_Validation_Dataset(sequence_length=seq_length, start_index=start_idx, path=data_path)
+    train_dataset = ECOCO_Train_Dataset(sequence_length=seq_length, start_index=start_idx, shift=shift,
+                                        n_shifts=n_seq_usages, path=data_path)
+    val_dataset = ECOCO_Validation_Dataset(sequence_length=seq_length, start_index=start_idx, shift=shift,
+                                           n_shifts=n_seq_usages, path=data_path)
+
+    events, images, flows = train_dataset.__getitem__(0)
+    height = events.shape[-2]
+    width = events.shape[-1]
+    crop = CropParameters(width, height, model.num_encoders)
 
     train_loader = torch.utils.data.DataLoader(train_dataset, batch_size=batch_size, shuffle=True)
     val_loader = torch.utils.data.DataLoader(val_dataset, batch_size=batch_size, shuffle=True)
@@ -40,8 +55,8 @@ if __name__ == "__main__":
     else:
         reconstruction_loss_fn = lpips.LPIPS(net='vgg')
 
-    train_losses, val_losses = training_loop(model, loss_fn, train_loader, val_loader, reconstruction_loss_fn,
-                                             epoch=num_epochs)
+    train_losses, val_losses = training_loop(model, train_loader, val_loader, reconstruction_loss_fn,
+                                             crop, preprocessor, rescaler, filt=filt, lr=0.0001, epoch=num_epochs)
     print(train_losses)
     print(val_losses)
     plot_training_data(train_losses, val_losses)

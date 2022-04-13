@@ -145,9 +145,8 @@ class IntensityRescaler:
                 self.Imax = np.median([rmax for rmin, rmax in self.intensity_bounds])
 
         with CudaTimer('Intensity rescaling'):
-            img = 255.0 * (img - self.Imin) / (self.Imax - self.Imin)
-            img.clamp_(0.0, 255.0)
-            img = img.byte()  # convert to 8-bit tensor
+            img = (img - self.Imin) / (self.Imax - self.Imin)
+            img.clamp_(0.0, 1.0)
 
         return img
 
