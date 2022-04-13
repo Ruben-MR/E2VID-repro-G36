@@ -78,6 +78,44 @@ def pad_events(events, crop):
     events = events.view(origin_shape_events[0], origin_shape_events[1], events.shape[1], events.shape[2], events.shape[3], events.shape[4]).squeeze(dim=2)
     return events
 
+ 
+def pad_all(events, images, flows):
+    width = events.shape[-1]
+    height = events.shape[-2]
+    origin_shape_events = events.shape
+    origin_shape_images = images.shape
+    origin_shape_flows = flows.shape
+    # # ==========================
+    # pre-processing step here (normalizing and padding)
+    crop = CropParameters(width, height, 3)
+    events = events.unsqueeze(dim=2)
+    images = images.unsqueeze(dim=2)
+    flows = flows.unsqueeze(dim=2)
+    #images = images.unsqueeze(dim=2)
+    events_after_padding = []
+    images_after_padding = []
+    flows_after_padding = []
+    for t in range(events.shape[0]):
+        for item in range(events.shape[1]):
+            event = events[t, item]
+            events_after_padding.append(crop.pad(event))
+    for t in range(images.shape[0]):
+        for item in range(images.shape[1]):
+            image = images[t, item]
+            images_after_padding.append(crop.pad(image))
+    for t in range(flows.shape[0]):
+        for item in range(flows.shape[1]):
+            flow = flows[t, item]
+            flows_after_padding.append(crop.pad(flow))
+    events = torch.stack(events_after_padding, dim=0)
+    images = torch.stack(images_after_padding, dim=0)
+    flows = torch.stack(flows_after_padding, dim=0)
+    events = events.view(origin_shape_events[0], origin_shape_events[1], events.shape[1], events.shape[2], events.shape[3], events.shape[4]).squeeze(dim=2)
+    images = images.view(origin_shape_images[0], origin_shape_images[1], images.shape[1], images.shape[2], images.shape[3], images.shape[4]).squeeze(dim=2)
+    flows = flows.view(origin_shape_flows[0], origin_shape_flows[1], flows.shape[1], flows.shape[2], flows.shape[3], flows.shape[4]).squeeze(dim=2)
+
+    return events, images, flows
+
 
 def flow_map(im, flo):
     """
@@ -115,7 +153,9 @@ def flow_map(im, flo):
     # Permute to get the correct dimensions for the sampling function
     vgrid = vgrid.permute(0, 2, 3, 1)
     # Sample points from the previuos image according to the indexing grid
+
     output = F.grid_sample(im, vgrid)
+
     """
     mask = torch.autograd.Variable(torch.ones(im.size())).cuda()
     mask = F.grid_sample(mask.double(), vgrid)
@@ -237,6 +277,7 @@ def training_loop(model, train_loader, validation_loader, rec_fun, cropper, prep
             epoch_losses = []  # loss of each batch
             print("\nvalidation progress:")
             # Load the data
+
             for x_batch_val, y_batch_val, flow_batch_val in tqdm(validation_loader):
                 hidden_states = None
                 I_predict_previous = None

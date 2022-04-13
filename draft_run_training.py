@@ -87,75 +87,75 @@ if __name__ == "__main__":
             if counter >= 1:
                 break
 
-    # Do not worry about code above!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-    #============================================================================================================================================
-    # ignore the code above, they are just used for taking out the event tensor and model
-    device = get_device(True)
-    #DATA_DIR = '/home/richard/Q3/Deep_Learning/ruben-mr.github.io/data'
-
-    batch_size = 2
-    sequence_length = 5
-    events = torch.tensor(full_event_tensor(range(batch_size), sequence_length, DATA_DIR)[0],
-                          dtype=torch.float64).cuda().float()
-    images = torch.tensor(full_image_tensor(range(batch_size), sequence_length, DATA_DIR)[0],
-                          dtype=torch.float64).cuda().float()
-
-    #=============================
-    # data pre-processing
-    events, images = pad_all(model, events, images)
-    #=============================
-    train_loader = [(events, images)]
-    validation_loader = [(events, images)]
-
-    if torch.cuda.is_available():
-        reconstruction_loss_fn = lpips.LPIPS(net='vgg').cuda()
-    else:
-        reconstruction_loss_fn = lpips.LPIPS(net='vgg')
-
-    train_losses, val_losses = training_loop(model, loss_fn, train_loader, validation_loader, reconstruction_loss_fn, epoch=5)
-    plot_training_data(train_losses, val_losses)
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-    #====================================================
-    # # old test code
+    # # Do not worry about code above!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    # #============================================================================================================================================
     # # ignore the code above, they are just used for taking out the event tensor and model
-    # # let's make a pseudo-dataset!!
-    # device = torch.device('cuda:0')
-    # events = event_tensor.unsqueeze(dim=0)
-    # # ==========================
-    # # pre-processing step here (normalizing and padding)
-    # crop = CropParameters(width, height, model.num_encoders)
-    # events = crop.pad(events) # (1, 5, 184, 240)
-    # # ==========================================
+    # device = get_device(True)
+    # #DATA_DIR = '/home/richard/Q3/Deep_Learning/ruben-mr.github.io/data'
     #
-    # #events = events.view((1,*events.shape)) # (1, 1, 5, 184, 240)
-    # events = events.unsqueeze(dim=0)
-    # sequence_length = events.shape[0]
-    # batch_size = events.shape[1]
-    # events = events.tile((sequence_length, batch_size, 1, 1, 1)) # (sequence_len, batch_size, channel, H, W)
-    # events = events.to(device)
-    # labels = torch.rand(events.shape).detach()
-    # labels = labels[:, :, 0:1, :, :] # TODO: dealing with multiple channels
-    # labels = labels.to(device)
+    # batch_size = 2
+    # sequence_length = 5
+    # events = torch.tensor(full_event_tensor(range(batch_size), sequence_length, DATA_DIR)[0],
+    #                       dtype=torch.float64).cuda().float()
+    # images = torch.tensor(full_image_tensor(range(batch_size), sequence_length, DATA_DIR)[0],
+    #                       dtype=torch.float64).cuda().float()
     #
-    # train_loader = [(events, labels)]
-    # validation_loader = [(events.detach(), labels)]
-    # #============================================================================
+    # #=============================
+    # # data pre-processing
+    # events, images = pad_all(model, events, images)
+    # #=============================
+    # train_loader = [(events, images)]
+    # validation_loader = [(events, images)]
     #
-    # train_losses, val_losses = training_loop(model, loss_fn, train_loader, validation_loader)
+    # if torch.cuda.is_available():
+    #     reconstruction_loss_fn = lpips.LPIPS(net='vgg').cuda()
+    # else:
+    #     reconstruction_loss_fn = lpips.LPIPS(net='vgg')
+    #
+    # train_losses, val_losses = training_loop(model, loss_fn, train_loader, validation_loader, reconstruction_loss_fn, epoch=5)
     # plot_training_data(train_losses, val_losses)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+    # ====================================================
+    # old test code
+    # ignore the code above, they are just used for taking out the event tensor and model
+    # let's make a pseudo-dataset!!
+    device = torch.device('cuda:0')
+    events = event_tensor.unsqueeze(dim=0)
+    # ==========================
+    # pre-processing step here (normalizing and padding)
+    crop = CropParameters(width, height, model.num_encoders)
+    events = crop.pad(events) # (1, 5, 184, 240)
+    # ==========================================
+
+    #events = events.view((1,*events.shape)) # (1, 1, 5, 184, 240)
+    events = events.unsqueeze(dim=0)
+    sequence_length = events.shape[0]
+    batch_size = events.shape[1]
+    events = events.tile((sequence_length, batch_size, 1, 1, 1)) # (sequence_len, batch_size, channel, H, W)
+    events = events.to(device)
+    labels = torch.rand(events.shape).detach()
+    labels = labels[:, :, 0:1, :, :] # TODO: dealing with multiple channels
+    labels = labels.to(device)
+
+    train_loader = [(events, labels)]
+    validation_loader = [(events.detach(), labels)]
+    #============================================================================
+
+    train_losses, val_losses = training_loop(model, loss_fn, train_loader, validation_loader)
+    plot_training_data(train_losses, val_losses)
     #===================================================
